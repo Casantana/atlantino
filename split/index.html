@@ -3,253 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <title>Split PDF Pro - Atlantino Tools</title>
-    <script>
-        if (!window.FileReader || !window.Blob || !window.Promise) {
-            alert("Your browser is outdated. Please update it to use Atlantino Tools.");
-        }
-    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; line-height: 1.6; }
-        header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
-        .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
-        .nav-links a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
-        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 30px; border: 1px dashed #cbd5e0; }
-        .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
-        .split-panel { background: white; padding: 40px; border-radius: 12px; width: 420px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .tab-btn { padding: 12px 25px; cursor: pointer; border: 1px solid #ddd; background: #f9f9f9; flex: 1; text-align: center; font-weight: 600; transition: 0.3s; }
-        .tab-btn.active { background: #d63031; color: white; border-color: #d63031; }
-        .preview-container { flex: 1; display: flex; flex-wrap: wrap; gap: 20px; }
-        .thumb-wrapper { position: relative; width: 180px; height: 220px; border: 2px solid #ddd; cursor: pointer; overflow: hidden; background: white; transition: 0.2s; }
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; }
+        header { background: #fff; padding: 15px 40px; border-bottom: 1px solid #e2e8f0; }
+        .screen { display: none; padding: 40px; justify-content: center; gap: 40px; }
+        .split-panel { background: white; padding: 40px; border-radius: 12px; width: 420px; border: 1px solid #e2e8f0; }
+        .tab-btn { padding: 12px 25px; cursor: pointer; border: 1px solid #ddd; background: #f9f9f9; flex: 1; text-align: center; }
+        .tab-btn.active { background: #d63031; color: white; }
+        .preview-container { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; }
+        .thumb-wrapper { width: 150px; height: 180px; border: 2px solid #ddd; cursor: pointer; overflow: hidden; }
         .thumb-wrapper.selected { border-color: #27ae60; background: #eafaf1; }
-        .checkmark { display: none; position: absolute; top: 8px; right: 8px; background: #27ae60; color: white; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; }
-        .thumb-wrapper.selected .checkmark { display: flex; }
-        .btn-main { background: #d63031; color: white; padding: 15px 35px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 25px; font-size: 1.1rem; }
-        .btn-extract { background: #3498db; color: white; padding: 18px 25px; border: none; border-radius: 6px; font-weight: 700; width: 100%; cursor: pointer; margin-bottom: 20px; text-transform: uppercase; }
-        #file-count-info { margin-top: 20px; padding: 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; }
+        .btn-main { background: #d63031; color: white; padding: 15px; border: none; width: 100%; cursor: pointer; margin-top: 20px; }
     </style>
 </head>
 <body>
-
-<header>
-    <a href="/" class="logo">Atlantino Tools</a>
-    <nav class="nav-links">
-        <a href="/merge">MERGE PDF</a><a href="/split">SPLIT PDF</a><a href="/compress">COMPRESS PDF</a>
-        <a href="/convert">CONVERT PDF</a><a href="/rotate">ROTATE PDF</a><a href="/watermark">WATERMARK PDF</a>
-    </nav>
-</header>
-
-<div class="ad-space">AdSense Banner (728x90)</div>
-
-<div id="screen-start" class="screen" style="display: flex;">
-    <div style="text-align:center;">
-        <h1>Split PDF pages</h1>
-        <button class="btn-main" onclick="document.getElementById('file-input').click()">Select PDF</button>
-    </div>
+<header><a href="/" style="font-weight:700; color:#d63031; text-decoration:none; font-size:1.5rem;">Atlantino Tools</a></header>
+<div id="screen-start" class="screen" style="display:flex;">
+    <div style="text-align:center;"><h1>Split PDF pages</h1><button class="btn-main" onclick="document.getElementById('file-input').click()">Select PDF</button></div>
 </div>
-
 <div id="screen-work" class="screen">
     <div id="preview-area" class="preview-container"></div>
     <div class="split-panel">
-        <h2 style="margin-top:0; margin-bottom: 25px; letter-spacing: 2px; text-align: center; font-size: 2rem;">SPLIT</h2>
-        <div style="display:flex; margin-bottom:30px;">
+        <div style="display:flex; margin-bottom:20px;">
             <div id="tab-range" class="tab-btn active" onclick="switchMode('range')">Range Mode</div>
             <div id="tab-pages" class="tab-btn" onclick="switchMode('pages')">Pages Mode</div>
         </div>
-
-        <div id="panel-range">
-            <input type="radio" name="rangeType" id="radio-custom" value="custom" checked onchange="resetRangeInputs()"> 
-            <label for="radio-custom" style="font-weight:700;">Custom Ranges</label><br>
-            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" onfocus="handleModeToggle('custom')" oninput="applyCustomRanges()">
-            <br>
-            <input type="radio" name="rangeType" id="radio-fixed" value="fixed" onchange="resetRangeInputs()"> 
-            <label for="radio-fixed" style="font-weight:700;">Fixed Ranges: </label>
-            <input type="number" id="fixed-pages" value="1" style="width:60px; padding:5px;" onfocus="handleModeToggle('fixed')" oninput="updateUI()">
-        </div>
-
-        <div id="panel-pages" style="display:none;">
-            <button class="btn-extract" onclick="toggleExtractAll()" id="btn-extract-all">Extract All Pages</button>
-            <p>Pages to extract:</p>
-            <input type="text" id="pages-to-extract-input" style="width:94%; padding:10px; margin-bottom: 10px;" readonly>
-        </div>
-
-        <div style="margin-top:25px;">
-            <input type="checkbox" id="merge-extracted" onchange="updateUI()"> 
-            <label for="merge-extracted">Merge extracted pages into one PDF</label>
-        </div>
-        
-        <div id="file-count-info">Resulting files: 0</div>
+        <div id="panel-range"><input type="text" id="custom-range" placeholder="e.g. 1-5, 8" style="width:90%; padding:10px;"></div>
+        <div id="panel-pages" style="display:none;"><button onclick="toggleExtractAll()" style="width:100%; padding:10px;">Extract All</button></div>
+        <div style="margin:20px 0;"><input type="checkbox" id="merge-extracted"> <label>Merge into one PDF</label></div>
         <button class="btn-main" onclick="executeSplit()">SPLIT PDF</button>
     </div>
 </div>
-
 <input type="file" id="file-input" accept="application/pdf" style="display:none;">
 
 <script>
-    let loadedPdfBytes = null;
-    let totalDocumentPages = 0;
-    const selectedPages = new Set();
-    let currentMode = 'range';
+    let rawFile = null; let totalPages = 0; const selected = new Set(); let mode = 'range';
 
-    function handleModeToggle(mode) {
-        if (mode === 'custom') { document.getElementById('radio-custom').checked = true; document.getElementById('fixed-pages').value = "1"; } 
-        else { document.getElementById('radio-fixed').checked = true; document.getElementById('custom-range').value = ""; }
-        clearSelection();
-    }
+    function switchMode(m) { mode = m; document.getElementById('panel-range').style.display = m==='range'?'block':'none'; document.getElementById('panel-pages').style.display = m==='pages'?'block':'none'; }
+    function toggleExtractAll() { if(selected.size === totalPages) selected.clear(); else for(let i=1; i<=totalPages; i++) selected.add(i); document.querySelectorAll('.thumb-wrapper').forEach((el,i)=>el.classList.toggle('selected', selected.has(i+1))); }
 
-    function resetRangeInputs() {
-        document.getElementById('custom-range').value = "";
-        document.getElementById('fixed-pages').value = "1";
-        clearSelection();
-    }
-
-    function clearSelection() {
-        selectedPages.clear();
-        document.querySelectorAll('.thumb-wrapper').forEach(el => el.classList.remove('selected'));
-        document.getElementById('pages-to-extract-input').value = "";
-        updateUI();
-    }
-
-    function switchMode(mode) {
-        currentMode = mode;
-        clearSelection();
-        document.getElementById('tab-range').className = mode === 'range' ? 'tab-btn active' : 'tab-btn';
-        document.getElementById('tab-pages').className = mode === 'pages' ? 'tab-btn active' : 'tab-btn';
-        document.getElementById('panel-range').style.display = mode === 'range' ? 'block' : 'none';
-        document.getElementById('panel-pages').style.display = mode === 'pages' ? 'block' : 'none';
-        updateUI();
-    }
-
-    function applyCustomRanges() {
-        const input = document.getElementById('custom-range').value;
-        const wrappers = document.querySelectorAll('.thumb-wrapper');
-        selectedPages.clear();
-        if (input.trim() !== "") {
-            input.split(',').forEach(r => {
-                const range = r.trim();
-                if (range.includes('-')) {
-                    const [s, e] = range.split('-').map(Number);
-                    for (let i = s; i <= e; i++) if(i > 0 && i <= totalDocumentPages) selectedPages.add(i);
-                } else if (!isNaN(range) && range !== "") { selectedPages.add(Number(range)); }
-            });
+    document.getElementById('file-input').onchange = async (e) => {
+        rawFile = await e.target.files[0].arrayBuffer();
+        document.getElementById('screen-start').style.display = 'none'; document.getElementById('screen-work').style.display = 'flex';
+        const pdf = await pdfjsLib.getDocument(rawFile).promise; totalPages = pdf.numPages;
+        for (let i = 1; i <= totalPages; i++) {
+            const wrapper = document.createElement('div'); wrapper.className = 'thumb-wrapper';
+            wrapper.innerHTML = `<canvas id="c${i}"></canvas>`; wrapper.onclick = () => { selected.has(i) ? selected.delete(i) : selected.add(i); wrapper.classList.toggle('selected'); };
+            document.getElementById('preview-area').appendChild(wrapper);
+            const page = await pdf.getPage(i); const vp = page.getViewport({scale:0.15}); const canvas = document.getElementById(`c${i}`);
+            canvas.height = vp.height; canvas.width = vp.width; await page.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
         }
-        wrappers.forEach((el, idx) => {
-            if (selectedPages.has(idx + 1)) el.classList.add('selected');
-            else el.classList.remove('selected');
-        });
-        document.getElementById('pages-to-extract-input').value = Array.from(selectedPages).sort((a,b)=>a-b).join(', ');
-        updateUI();
-    }
-
-    function toggleExtractAll() {
-        const wrappers = document.querySelectorAll('.thumb-wrapper');
-        if (selectedPages.size === totalDocumentPages) {
-            clearSelection();
-        } else {
-            selectedPages.clear();
-            for (let i = 1; i <= totalDocumentPages; i++) {
-                selectedPages.add(i);
-                wrappers[i - 1].classList.add('selected');
-            }
-            document.getElementById('pages-to-extract-input').value = "1-" + totalDocumentPages;
-            updateUI();
-        }
-    }
-
-    function updateUI() {
-        let count = 0;
-        if (document.getElementById('merge-extracted').checked) { count = 1; }
-        else if (currentMode === 'range') {
-            if (document.getElementById('radio-custom').checked) { count = document.getElementById('custom-range').value ? document.getElementById('custom-range').value.split(',').length : 0; }
-            else { count = Math.ceil(totalDocumentPages / (parseInt(document.getElementById('fixed-pages').value) || 1)); }
-        } else { count = selectedPages.size; }
-        document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
-    }
-
-    document.getElementById('file-input').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        loadedPdfBytes = await file.arrayBuffer();
-        document.getElementById('screen-start').style.display = 'none';
-        document.getElementById('screen-work').style.display = 'flex';
-        const pdf = await pdfjsLib.getDocument(loadedPdfBytes).promise;
-        totalDocumentPages = pdf.numPages;
-        const previewArea = document.getElementById('preview-area');
-        previewArea.innerHTML = '';
-        for (let i = 1; i <= totalDocumentPages; i++) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'thumb-wrapper';
-            wrapper.innerHTML = `<canvas></canvas><div class="checkmark">✓</div>`;
-            const canvas = wrapper.querySelector('canvas');
-            const page = await pdf.getPage(i);
-            const vp = page.getViewport({ scale: 0.2 });
-            canvas.height = vp.height; canvas.width = vp.width;
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-            wrapper.onclick = () => {
-                if (selectedPages.has(i)) selectedPages.delete(i); else selectedPages.add(i);
-                wrapper.classList.toggle('selected');
-                document.getElementById('pages-to-extract-input').value = Array.from(selectedPages).sort((a,b)=>a-b).join(', ');
-                updateUI();
-            };
-            previewArea.appendChild(wrapper);
-        }
-    });
+    };
 
     async function executeSplit() {
-        if (!loadedPdfBytes) return;
-        // Creamos una copia del buffer para evitar el error de ArrayBuffer desasociado
-        const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes.slice(0));
         const merge = document.getElementById('merge-extracted').checked;
         const zip = new JSZip();
-
-        let groups = [];
-        if (currentMode === 'pages') {
-            groups = merge ? [Array.from(selectedPages).sort((a,b)=>a-b)] : Array.from(selectedPages).sort((a,b)=>a-b).map(p => [p]);
-        } else if (currentMode === 'range' && document.getElementById('radio-custom').checked) {
+        
+        const getGroups = () => {
+            if (mode === 'pages') return merge ? [Array.from(selected).sort((a,b)=>a-b)] : Array.from(selected).sort((a,b)=>a-b).map(p=>[p]);
             let ranges = document.getElementById('custom-range').value.split(',');
-            let all = [];
-            ranges.forEach(r => { 
-                const [s, e] = r.split('-').map(Number);
-                for(let i=(s||0); i<=(e||s); i++) if(i>0 && i<=totalDocumentPages) all.push(i);
-            });
-            groups = merge ? [all] : all.map(p => [p]);
-        } else {
-            const step = parseInt(document.getElementById('fixed-pages').value) || 1;
-            let all = Array.from({length: totalDocumentPages}, (_, i) => i + 1);
-            if (merge) groups = [all];
-            else {
-                for (let i = 0; i < all.length; i += step) groups.push(all.slice(i, i + step));
-            }
-        }
+            let all = []; ranges.forEach(r => { const [s, e] = r.split('-').map(Number); for(let i=(s||0); i<=(e||s); i++) if(i>0 && i<=totalPages) all.push(i); });
+            return merge ? [all] : all.map(p=>[p]);
+        };
 
+        const groups = getGroups();
         for (let i = 0; i < groups.length; i++) {
-            if (groups[i].length === 0) continue;
+            // Se usa new Uint8Array para crear una copia fresca del buffer original en cada ciclo
+            const doc = await PDFLib.PDFDocument.load(new Uint8Array(rawFile));
             const newPdf = await PDFLib.PDFDocument.create();
-            for(let pNum of groups[i]) {
-                const [copiedPage] = await newPdf.copyPages(pdfDoc, [pNum - 1]);
-                newPdf.addPage(copiedPage);
-            }
-            const pdfBytes = await newPdf.save();
-            
-            if (merge) {
-                downloadBlob(new Blob([pdfBytes], {type: "application/pdf"}), "merged_output.pdf");
-                return;
-            } else {
-                zip.file(`split_part_${i+1}.pdf`, pdfBytes);
-            }
+            const copied = await newPdf.copyPages(doc, groups[i].map(p=>p-1));
+            copied.forEach(p => newPdf.addPage(p));
+            const bytes = await newPdf.save();
+            merge ? download(new Blob([bytes]), "output.pdf") : zip.file(`part_${i+1}.pdf`, bytes);
+            if(merge) return;
         }
-        if (!merge && groups.length > 0) downloadBlob(await zip.generateAsync({type: "blob"}), "split_files.zip");
+        if(!merge) download(await zip.generateAsync({type:"blob"}), "split.zip");
     }
-
-    function downloadBlob(blob, name) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = name; a.click();
-        URL.revokeObjectURL(url);
-    }
+    const download = (b, n) => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = n; a.click(); };
 </script>
 </body>
 </html>
