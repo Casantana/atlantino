@@ -20,7 +20,7 @@
         .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 30px; border: 1px dashed #cbd5e0; }
         
         .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
-        .split-panel { background: white; padding: 35px; border-radius: 12px; width: 420px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .split-panel { background: white; padding: 40px; border-radius: 12px; width: 420px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .tab-btn { padding: 12px 25px; cursor: pointer; border: 1px solid #ddd; background: #f9f9f9; flex: 1; text-align: center; font-weight: 600; transition: 0.3s; }
         .tab-btn.active { background: #d63031; color: white; border-color: #d63031; }
         
@@ -30,8 +30,8 @@
         .checkmark { display: none; position: absolute; top: 8px; right: 8px; background: #27ae60; color: white; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; }
         .thumb-wrapper.selected .checkmark { display: flex; }
         
-        .btn-main { background: #d63031; color: white; padding: 15px 35px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 25px; font-size: 1rem; }
-        .btn-extract { background: #3498db; color: white; padding: 14px; border: none; border-radius: 6px; font-weight: 700; width: 100%; cursor: pointer; margin-bottom: 20px; }
+        .btn-main { background: #d63031; color: white; padding: 15px 35px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 25px; font-size: 1.1rem; }
+        .btn-extract { background: #3498db; color: white; padding: 18px 25px; border: none; border-radius: 6px; font-weight: 700; width: 100%; cursor: pointer; margin-bottom: 20px; text-transform: uppercase; }
         #file-count-info { margin-top: 20px; padding: 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; }
     </style>
 </head>
@@ -57,8 +57,8 @@
 <div id="screen-work" class="screen">
     <div id="preview-area" class="preview-container"></div>
     <div class="split-panel">
-        <h2 style="margin-top:0; margin-bottom: 20px; letter-spacing: 1px;">Split</h2>
-        <div style="display:flex; margin-bottom:25px;">
+        <h2 style="margin-top:0; margin-bottom: 25px; letter-spacing: 2px; text-align: center; font-size: 2rem;">SPLIT</h2>
+        <div style="display:flex; margin-bottom:30px;">
             <div id="tab-range" class="tab-btn active" onclick="switchMode('range')">Range Mode</div>
             <div id="tab-pages" class="tab-btn" onclick="switchMode('pages')">Pages Mode</div>
         </div>
@@ -72,7 +72,7 @@
         </div>
 
         <div id="panel-pages" style="display:none;">
-            <button class="btn-extract" onclick="extractAll()">Extract All Pages</button>
+            <button class="btn-extract" onclick="toggleExtractAll()" id="btn-extract-all">Extract All Pages</button>
             <p>Pages to extract:</p>
             <input type="text" id="pages-to-extract-input" style="width:94%; padding:10px; margin-bottom: 10px;" readonly>
         </div>
@@ -94,37 +94,64 @@
     let totalDocumentPages = 0;
     const selectedPages = new Set();
     let currentMode = 'range';
+    let isAllSelected = false;
+
+    function clearSelection() {
+        selectedPages.clear();
+        isAllSelected = false;
+        document.querySelectorAll('.thumb-wrapper').forEach(el => el.classList.remove('selected'));
+        document.getElementById('pages-to-extract-input').value = "";
+        document.getElementById('custom-range').value = "";
+        updateUI();
+    }
 
     function switchMode(mode) {
         currentMode = mode;
+        clearSelection();
         document.getElementById('tab-range').className = mode === 'range' ? 'tab-btn active' : 'tab-btn';
         document.getElementById('tab-pages').className = mode === 'pages' ? 'tab-btn active' : 'tab-btn';
         document.getElementById('panel-range').style.display = mode === 'range' ? 'block' : 'none';
         document.getElementById('panel-pages').style.display = mode === 'pages' ? 'block' : 'none';
+    }
+
+    function toggleExtractAll() {
+        isAllSelected = !isAllSelected;
+        selectedPages.clear();
+        const wrappers = document.querySelectorAll('.thumb-wrapper');
+        
+        wrappers.forEach((el, idx) => {
+            if (isAllSelected) {
+                selectedPages.add(idx + 1);
+                el.classList.add('selected');
+            } else {
+                el.classList.remove('selected');
+            }
+        });
+        document.getElementById('pages-to-extract-input').value = isAllSelected ? "All pages selected" : "";
         updateUI();
     }
 
-    // Lógica para parsear rangos "1-5, 8" y marcar miniaturas
     function applyCustomRanges() {
         const input = document.getElementById('custom-range').value;
         const wrappers = document.querySelectorAll('.thumb-wrapper');
         selectedPages.clear();
         
-        const ranges = input.split(',');
-        ranges.forEach(r => {
-            if (r.includes('-')) {
-                const [start, end] = r.split('-').map(Number);
-                for (let i = start; i <= end; i++) selectedPages.add(i);
-            } else {
-                selectedPages.add(Number(r));
-            }
-        });
-
-        wrappers.forEach((el, idx) => {
-            const pageNum = idx + 1;
-            if (selectedPages.has(pageNum)) el.classList.add('selected');
-            else el.classList.remove('selected');
-        });
+        if (input.trim() === "") {
+            wrappers.forEach(el => el.classList.remove('selected'));
+        } else {
+            input.split(',').forEach(r => {
+                if (r.includes('-')) {
+                    const [s, e] = r.split('-').map(Number);
+                    for (let i = s; i <= e; i++) selectedPages.add(i);
+                } else {
+                    selectedPages.add(Number(r));
+                }
+            });
+            wrappers.forEach((el, idx) => {
+                if (selectedPages.has(idx + 1)) el.classList.add('selected');
+                else el.classList.remove('selected');
+            });
+        }
         updateUI();
     }
 
@@ -139,13 +166,13 @@
         totalDocumentPages = pdf.numPages;
         
         const previewArea = document.getElementById('preview-area');
-        for (let i = 1; i <= Math.min(totalDocumentPages, 24); i++) {
+        for (let i = 1; i <= totalDocumentPages; i++) {
             const wrapper = document.createElement('div');
             wrapper.className = 'thumb-wrapper';
             wrapper.innerHTML = `<canvas></canvas><div class="checkmark">✓</div>`;
             const canvas = wrapper.querySelector('canvas');
             const page = await pdf.getPage(i);
-            const vp = page.getViewport({ scale: 0.3 });
+            const vp = page.getViewport({ scale: 0.25 });
             canvas.height = vp.height; canvas.width = vp.width;
             await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
             
@@ -166,15 +193,8 @@
         document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
     }
 
-    function extractAll() {
-        selectedPages.clear();
-        for(let i=1; i<=totalDocumentPages; i++) selectedPages.add(i);
-        document.querySelectorAll('.thumb-wrapper').forEach(el => el.classList.add('selected'));
-        updateUI();
-    }
-
     async function executeSplit() {
-        alert("Processing split with " + selectedPages.size + " pages.");
+        alert("Processing: " + selectedPages.size + " pages.");
     }
 </script>
 </body>
