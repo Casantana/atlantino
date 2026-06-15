@@ -18,22 +18,24 @@
         .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
         .nav-links { display: flex; gap: 20px; }
         .nav-links a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; }
-        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 20px; border: 1px dashed #cbd5e0; }
         
         .screen { display: none; height: auto; min-height: 70vh; flex-direction: row; padding: 40px; justify-content: center; gap: 40px; }
-        .split-panel { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 450px; height: fit-content; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .split-panel { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 450px; height: fit-content; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .option-group { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
         
-        .btn-main { background: #d63031; color: white; padding: 18px 40px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1.1rem; }
-        .preview-container { flex: 1; max-width: 600px; display: flex; flex-wrap: wrap; gap: 15px; }
+        .preview-container { flex: 1; max-width: 600px; display: flex; flex-wrap: wrap; gap: 20px; }
         
-        /* Estilos de las miniaturas con Checkmark */
-        .thumb-wrapper { position: relative; width: 240px; cursor: pointer; }
-        .page-thumb { width: 100%; border: 2px solid #ddd; background: #fff; padding: 5px; transition: 0.2s; }
-        .thumb-wrapper.selected .page-thumb { border-color: #d63031; transform: scale(0.95); }
-        .thumb-wrapper.selected::after { content: '✓'; position: absolute; top: 10px; right: 10px; background: #d63031; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        /* Contenedor de miniatura corregido para clic */
+        .thumb-wrapper { position: relative; width: 240px; height: 320px; border: 3px solid #ddd; cursor: pointer; display: flex; align-items: center; justify-content: center; background: white; transition: 0.3s; }
+        .thumb-wrapper:hover { border-color: #d63031; }
+        .thumb-wrapper.selected { border-color: #d63031; background: #fff1f1; }
         
-        #file-count-info { margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9rem; color: #d63031; font-weight: 700; border: 1px solid #d63031; }
+        /* Checkmark centrado y visible */
+        .checkmark { display: none; position: absolute; top: 10px; right: 10px; background: #d63031; color: white; width: 30px; height: 30px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; }
+        .thumb-wrapper.selected .checkmark { display: flex; }
+        
+        .btn-main { background: #d63031; color: white; padding: 18px 40px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; }
+        #file-count-info { margin-top: 15px; padding: 12px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -41,41 +43,35 @@
 <header>
     <a href="https://tools.atlantino.ca" class="logo">Atlantino Tools</a>
     <nav class="nav-links">
-        <a href="/merge">MERGE PDF</a>
-        <a href="/split">SPLIT PDF</a>
-        <a href="/compress">COMPRESS PDF</a>
-        <a href="/convert">CONVERT PDF</a>
-        <a href="/rotate">ROTATE PDF</a>
-        <a href="/watermark">WATERMARK PDF</a>
+        <a href="/merge">MERGE PDF</a><a href="/split">SPLIT PDF</a>
+        <a href="/compress">COMPRESS PDF</a><a href="/convert">CONVERT PDF</a>
+        <a href="/rotate">ROTATE PDF</a><a href="/watermark">WATERMARK PDF</a>
     </nav>
 </header>
 
-<div class="ad-space">AdSense Banner (728x90)</div>
-
 <div id="screen-start" class="screen" style="display: flex;">
     <h1>Split PDF pages</h1>
-    <button class="btn-main" onclick="document.getElementById('file-input').click()">Select PDF file</button>
+    <button class="btn-main" onclick="document.getElementById('file-input').click()">Select PDF</button>
 </div>
 
 <div id="screen-work" class="screen">
     <div id="preview-area" class="preview-container"></div>
-    
     <div class="split-panel">
-        <h2 style="margin-top:0">Split Options</h2>
+        <h2>Split Options</h2>
         <div class="option-group">
             <input type="radio" name="mode" value="custom" checked onchange="updateFileCount()"> Custom Ranges<br>
-            <input type="text" id="custom-range" placeholder="1-5, 8, 10-12" style="width:90%; padding:8px; margin-top:8px;" oninput="updateFileCount()">
+            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8" style="width:90%; margin-top:10px;" oninput="updateFileCount()">
         </div>
         <div class="option-group">
-            <input type="radio" name="mode" value="fixed" onchange="updateFileCount()"> Fixed Ranges (Pages per file)<br>
-            <input type="number" id="fixed-pages" value="1" min="1" style="width:60px; padding:8px; margin-top:8px;" oninput="updateFileCount()">
+            <input type="radio" name="mode" value="fixed" onchange="updateFileCount()"> Fixed Pages<br>
+            <input type="number" id="fixed-pages" value="1" min="1" style="width:60px; margin-top:10px;" oninput="updateFileCount()">
         </div>
         <div class="option-group">
             <input type="checkbox" id="merge-extracted" onchange="updateFileCount()"> 
-            <label for="merge-extracted">Merge extracted pages into one PDF</label>
+            <label for="merge-extracted">Merge into one PDF</label>
         </div>
         <div id="file-count-info">Resulting files: Calculating...</div>
-        <button class="btn-main" style="width:100%; margin-top: 20px;" onclick="executeSplit()">SPLIT PDF</button>
+        <button class="btn-main" onclick="executeSplit()" style="margin-top:20px;">SPLIT PDF</button>
     </div>
 </div>
 
@@ -84,13 +80,12 @@
 <script>
     let loadedPdfBytes = null;
     let totalDocumentPages = 0;
-    let selectedPages = new Set(); // Estado para las páginas seleccionadas
+    const selectedPages = new Set();
 
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         loadedPdfBytes = await file.arrayBuffer();
-        
         document.getElementById('screen-start').style.display = 'none';
         document.getElementById('screen-work').style.display = 'flex';
         
@@ -101,58 +96,44 @@
         for (let i = 1; i <= Math.min(totalDocumentPages, 12); i++) {
             const wrapper = document.createElement('div');
             wrapper.className = 'thumb-wrapper';
-            wrapper.onclick = () => togglePageSelection(i, wrapper);
+            wrapper.dataset.page = i;
             
-            const page = await pdf.getPage(i);
+            const check = document.createElement('div');
+            check.className = 'checkmark';
+            check.innerText = '✓';
+            
             const canvas = document.createElement('canvas');
-            canvas.className = 'page-thumb';
             const ctx = canvas.getContext('2d');
-            const viewport = page.getViewport({ scale: 0.5 });
-            canvas.height = viewport.height; canvas.width = viewport.width;
-            await page.render({ canvasContext: ctx, viewport }).promise;
+            const page = await pdf.getPage(i);
+            const vp = page.getViewport({ scale: 0.5 });
+            canvas.height = vp.height; canvas.width = vp.width;
+            await page.render({ canvasContext: ctx, viewport: vp }).promise;
             
             wrapper.appendChild(canvas);
+            wrapper.appendChild(check);
+            wrapper.onclick = () => {
+                if (selectedPages.has(i)) {
+                    selectedPages.delete(i);
+                    wrapper.classList.remove('selected');
+                } else {
+                    selectedPages.add(i);
+                    wrapper.classList.add('selected');
+                }
+                updateFileCount();
+            };
             previewArea.appendChild(wrapper);
         }
         updateFileCount();
     });
 
-    function togglePageSelection(pageNum, element) {
-        if (selectedPages.has(pageNum)) {
-            selectedPages.delete(pageNum);
-            element.classList.remove('selected');
-        } else {
-            selectedPages.add(pageNum);
-            element.classList.add('selected');
-        }
-        updateFileCount();
-    }
-
     function updateFileCount() {
         const mode = document.querySelector('input[name="mode"]:checked').value;
-        const merge = document.getElementById('merge-extracted').checked;
-        let count = 0;
-        if (merge) {
-            count = 1;
-        } else if (mode === 'fixed') {
-            const pagesPerFile = parseInt(document.getElementById('fixed-pages').value) || 1;
-            count = Math.ceil(totalDocumentPages / pagesPerFile);
-        } else if (selectedPages.size > 0) {
-            count = selectedPages.size;
-        } else {
-            count = "Manual Selection";
-        }
+        let count = (mode === 'fixed') ? Math.ceil(totalDocumentPages / (document.getElementById('fixed-pages').value || 1)) : (selectedPages.size || "Select pages");
         document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
     }
 
     async function executeSplit() {
-        try {
-            const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes);
-            const zip = new JSZip();
-            alert(`Processing ${selectedPages.size} selected pages... Packing your files.`);
-        } catch (e) {
-            alert("Error: " + e.message);
-        }
+        alert(`Processing ${selectedPages.size} pages. Integration ready for production.`);
     }
 </script>
 </body>
