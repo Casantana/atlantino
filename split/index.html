@@ -19,10 +19,13 @@
         .nav-links { display: flex; gap: 20px; }
         .nav-links a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; }
         .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 20px; border: 1px dashed #cbd5e0; }
-        .screen { display: none; height: auto; min-height: 70vh; flex-direction: column; align-items: center; padding: 40px; }
-        .btn-main { background: #d63031; color: white; padding: 18px 40px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
-        .split-panel { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .option-group { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .screen { display: none; height: auto; min-height: 80vh; flex-direction: column; align-items: center; padding: 40px; }
+        .btn-main { background: #d63031; color: white; padding: 18px 40px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(214, 48, 49, 0.3); }
+        .split-panel { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 700px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .option-group { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .range-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        #preview-area { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .page-thumb { width: 100px; border: 1px solid #ccc; background: white; padding: 5px; text-align: center; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -40,25 +43,36 @@
 
 <div id="screen-start" class="screen" style="display: flex;">
     <h1>Split PDF pages</h1>
+    <p style="color: #636e72; margin-bottom: 30px;">Select a PDF to start splitting.</p>
     <button class="btn-main" onclick="document.getElementById('file-input').click()">Select PDF file</button>
 </div>
 
 <div id="screen-work" class="screen">
-    <div id="preview-area" style="margin-bottom: 20px; border: 1px solid #ccc; padding: 10px;"></div>
+    <div id="preview-area"></div>
     <div class="split-panel">
-        <h3>Choose Split Mode</h3>
         <div class="option-group">
-            <label><input type="radio" name="mode" value="custom" checked> Custom Ranges (e.g. 1-5, 8-10)</label>
-            <input type="text" id="custom-range" placeholder="1-5, 8-10" style="width:100%; margin-top:10px;">
+            <label><strong>1. Select Range Mode:</strong></label><br>
+            <input type="radio" name="mode" value="custom" checked onchange="toggleInputs()"> Custom Ranges
+            <input type="radio" name="mode" value="fixed" onchange="toggleInputs()"> Fixed Ranges
+            <input type="radio" name="mode" value="all" onchange="toggleInputs()"> Extract All Pages
         </div>
+
+        <div id="custom-ui" class="option-group">
+            <label>Ranges (e.g., 1-5, 8, 10-12):</label>
+            <input type="text" id="range-text" class="range-input" placeholder="1-5, 8, 10-12">
+        </div>
+
+        <div id="fixed-ui" class="option-group" style="display:none;">
+            <label>Pages per file:</label>
+            <input type="number" id="fixed-num" value="1" min="1" class="range-input">
+        </div>
+
         <div class="option-group">
-            <label><input type="radio" name="mode" value="fixed"> Fixed Ranges (Pages per file)</label>
-            <input type="number" id="fixed-pages" value="1" min="1" style="width:60px;">
+            <input type="checkbox" id="merge-extracted"> 
+            <label for="merge-extracted"><strong>Merge extracted pages into one PDF</strong></label>
+            <p id="info-text" style="font-size: 0.8rem; color: #555;">Selected pages will be converted into separate PDF files.</p>
         </div>
-        <div class="option-group">
-            <label><input type="checkbox" id="merge-extracted"> Merge extracted pages into one PDF</label>
-        </div>
-        <button class="btn-main" style="width:100%" onclick="processSplit()">Split PDF</button>
+        <button class="btn-main" style="width:100%" onclick="executeSplit()">SPLIT PDF</button>
     </div>
 </div>
 
@@ -66,6 +80,12 @@
 
 <script>
     let loadedPdfBytes = null;
+
+    function toggleInputs() {
+        const mode = document.querySelector('input[name="mode"]:checked').value;
+        document.getElementById('custom-ui').style.display = (mode === 'custom') ? 'block' : 'none';
+        document.getElementById('fixed-ui').style.display = (mode === 'fixed') ? 'block' : 'none';
+    }
 
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -75,39 +95,49 @@
         document.getElementById('screen-start').style.display = 'none';
         document.getElementById('screen-work').style.display = 'flex';
         
-        // Cargar vista previa básica con PDF.js
+        // Renderizar vistas previas
         const pdf = await pdfjsLib.getDocument(loadedPdfBytes).promise;
-        const page = await pdf.getPage(1);
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const viewport = page.getViewport({ scale: 0.5 });
-        canvas.height = viewport.height; canvas.width = viewport.width;
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        document.getElementById('preview-area').innerHTML = '';
-        document.getElementById('preview-area').appendChild(canvas);
+        const previewArea = document.getElementById('preview-area');
+        previewArea.innerHTML = '';
+        for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+            const page = await pdf.getPage(i);
+            const canvas = document.createElement('canvas');
+            canvas.className = 'page-thumb';
+            const ctx = canvas.getContext('2d');
+            const viewport = page.getViewport({ scale: 0.2 });
+            canvas.height = viewport.height; canvas.width = viewport.width;
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            canvas.innerHTML += `<br>Page ${i}`;
+            previewArea.appendChild(canvas);
+        }
     });
 
-    async function processSplit() {
+    async function executeSplit() {
         try {
             const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes);
-            const totalPages = pdfDoc.getPageCount();
             const mode = document.querySelector('input[name="mode"]:checked').value;
             const merge = document.getElementById('merge-extracted').checked;
-            
-            // Lógica simplificada de ejemplo para validación de rango
-            if (mode === 'custom') {
-                const range = document.getElementById('custom-range').value;
-                if (!range) throw new Error("Please enter a valid range.");
-                // Aquí iría la lógica de parseo de strings (e.g., 1-5, 8-10)
-                alert("Split processed successfully!");
+            const zip = new JSZip();
+
+            // Lógica expandida de división
+            if (mode === 'all') {
+                for (let i = 0; i < pdfDoc.getPageCount(); i++) {
+                    const newPdf = await PDFLib.PDFDocument.create();
+                    const [page] = await newPdf.copyPages(pdfDoc, [i]);
+                    newPdf.addPage(page);
+                    const bytes = await newPdf.save();
+                    zip.file(`page_${i + 1}.pdf`, bytes);
+                }
+            } else if (mode === 'custom') {
+                // Implementación de lógica de parseo de rangos aquí...
+                alert("Processing Custom Ranges...");
             }
-            
-            // Implementación de JSZip para múltiples archivos
-            if (!merge) {
-                const zip = new JSZip();
-                // zip.file("part1.pdf", bytes);
-                // zip.generateAsync({type:"blob"}).then(blob => ...);
-            }
+
+            const content = await zip.generateAsync({type:"blob"});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            link.download = 'split_atlantino.zip';
+            link.click();
         } catch (e) {
             alert("Error: " + e.message);
         }
