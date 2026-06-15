@@ -223,15 +223,13 @@
             }
         }
 
-        // --- CORRECCIÓN ---
+        // Corrección: Crear copia independiente por cada archivo para evitar error de detached ArrayBuffer
         for (let i = 0; i < groups.length; i++) {
             if (groups[i].length === 0) continue;
             
-            // Creamos una nueva instancia de documento usando una copia fresca del buffer original
             const pdfDoc = await PDFLib.PDFDocument.load(new Uint8Array(loadedPdfBytes));
             const newPdf = await PDFLib.PDFDocument.create();
             
-            // Copiamos página por página para evitar errores de índice
             for(let pNum of groups[i]) {
                 const [copiedPage] = await newPdf.copyPages(pdfDoc, [pNum - 1]);
                 newPdf.addPage(copiedPage);
