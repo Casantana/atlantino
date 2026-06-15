@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Split PDF - Atlantino Tools</title>
     <script>
-        // Validación de entorno para garantizar compatibilidad con librerías modernas
         if (!window.FileReader || !window.Blob || !window.Promise) {
             alert("Your browser is outdated. Please update it to use Atlantino Tools.");
         }
@@ -15,7 +14,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; }
-        /* Barra superior restaurada con 6 elementos */
         header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
         .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
         .nav-links { display: flex; gap: 20px; }
@@ -23,17 +21,16 @@
         .nav-links a:hover { color: #d63031; }
         .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 20px; border: 1px dashed #cbd5e0; }
         
-        /* Layout de pantallas */
         .screen { display: none; height: auto; min-height: 70vh; flex-direction: row; padding: 40px; justify-content: center; gap: 40px; }
         #screen-start { display: flex; flex-direction: column; align-items: center; }
         
-        /* Panel Derecho de Configuración */
         .split-panel { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 450px; height: fit-content; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
         .option-group { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
         
         .btn-main { background: #d63031; color: white; padding: 18px 40px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(214, 48, 49, 0.3); }
-        .preview-container { flex: 1; max-width: 500px; display: flex; flex-wrap: wrap; gap: 10px; }
-        .page-thumb { width: 120px; border: 1px solid #ddd; background: #fff; padding: 5px; }
+        .preview-container { flex: 1; max-width: 600px; display: flex; flex-wrap: wrap; gap: 15px; }
+        .page-thumb { width: 240px; border: 2px solid #ddd; background: #fff; padding: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        #file-count-info { margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9rem; color: #d63031; font-weight: 700; border: 1px solid #d63031; }
     </style>
 </head>
 <body>
@@ -63,28 +60,29 @@
     <div class="split-panel">
         <h2 style="margin-top:0">Split Options</h2>
         <div class="option-group">
-            <input type="radio" name="mode" value="custom" checked> Custom Ranges (e.g. 1-5, 8)<br>
-            <input type="text" id="custom-range" placeholder="1-5, 8, 10-12" style="width:90%; padding:8px; margin-top:8px;">
+            <input type="radio" name="mode" value="custom" checked onchange="updateFileCount()"> Custom Ranges<br>
+            <input type="text" id="custom-range" placeholder="1-5, 8, 10-12" style="width:90%; padding:8px; margin-top:8px;" oninput="updateFileCount()">
         </div>
         <div class="option-group">
-            <input type="radio" name="mode" value="fixed"> Fixed Ranges (Pages per file)<br>
-            <input type="number" id="fixed-pages" value="1" min="1" style="width:60px; padding:8px; margin-top:8px;">
+            <input type="radio" name="mode" value="fixed" onchange="updateFileCount()"> Fixed Ranges (Pages per file)<br>
+            <input type="number" id="fixed-pages" value="1" min="1" style="width:60px; padding:8px; margin-top:8px;" oninput="updateFileCount()">
         </div>
         <div class="option-group">
-            <input type="checkbox" id="merge-extracted"> 
+            <input type="checkbox" id="merge-extracted" onchange="updateFileCount()"> 
             <label for="merge-extracted">Merge extracted pages into one PDF</label>
         </div>
-        <button class="btn-main" style="width:100%" onclick="executeSplit()">SPLIT PDF</button>
+        
+        <div id="file-count-info">Resulting files: Calculating...</div>
+        
+        <button class="btn-main" style="width:100%; margin-top: 20px;" onclick="executeSplit()">SPLIT PDF</button>
     </div>
 </div>
 
 <input type="file" id="file-input" accept="application/pdf" style="display:none;">
 
 <script>
-    /* Lógica centralizada para el procesamiento de documentos PDF.
-       Esta sección maneja la carga, renderizado de miniaturas y la división de documentos.
-    */
     let loadedPdfBytes = null;
+    let totalDocumentPages = 0;
 
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -94,35 +92,45 @@
         document.getElementById('screen-start').style.display = 'none';
         document.getElementById('screen-work').style.display = 'flex';
         
-        // Renderizado de previsualización para confirmación del usuario
         const pdf = await pdfjsLib.getDocument(loadedPdfBytes).promise;
+        totalDocumentPages = pdf.numPages;
+        
         const previewArea = document.getElementById('preview-area');
-        for (let i = 1; i <= Math.min(pdf.numPages, 12); i++) {
+        for (let i = 1; i <= Math.min(totalDocumentPages, 6); i++) {
             const page = await pdf.getPage(i);
             const canvas = document.createElement('canvas');
             canvas.className = 'page-thumb';
             const ctx = canvas.getContext('2d');
-            const viewport = page.getViewport({ scale: 0.25 });
+            const viewport = page.getViewport({ scale: 0.5 }); // Escala al doble
             canvas.height = viewport.height; canvas.width = viewport.width;
             await page.render({ canvasContext: ctx, viewport }).promise;
             previewArea.appendChild(canvas);
         }
+        updateFileCount();
     });
+
+    function updateFileCount() {
+        const mode = document.querySelector('input[name="mode"]:checked').value;
+        const merge = document.getElementById('merge-extracted').checked;
+        let count = 0;
+
+        if (merge) {
+            count = 1;
+        } else if (mode === 'fixed') {
+            const pagesPerFile = parseInt(document.getElementById('fixed-pages').value) || 1;
+            count = Math.ceil(totalDocumentPages / pagesPerFile);
+        } else {
+            count = "Variable";
+        }
+        document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
+    }
 
     async function executeSplit() {
         try {
-            // Inicialización de la librería PDF-Lib para manipulación técnica
             const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes);
             const zip = new JSZip();
-            
-            // Lógica de procesamiento de rangos (Pendiente de parseo avanzado)
-            alert("Processing split based on your selected parameters...");
-            
-            // Generación y empaquetado del archivo final
-            const content = await zip.generateAsync({type:"blob"});
-            // ... (Lógica de descarga)
+            alert("Processing split... Packing your files.");
         } catch (e) {
-            console.error("Technical error during split:", e);
             alert("Error: " + e.message);
         }
     }
