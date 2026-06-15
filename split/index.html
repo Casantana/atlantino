@@ -38,10 +38,10 @@
 <body>
 
 <header>
-    <a href="https://tools.atlantino.ca" class="logo">Atlantino Tools</a>
+    <a href="/" class="logo">Atlantino Tools</a>
     <nav class="nav-links">
-        <a href="/merge">MERGE</a><a href="/split">SPLIT</a><a href="/compress">COMPRESS</a>
-        <a href="/convert">CONVERT</a><a href="/rotate">ROTATE</a><a href="/delete">DELETE</a>
+        <a href="/merge">MERGE PDF</a><a href="/split">SPLIT PDF</a><a href="/compress">COMPRESS PDF</a>
+        <a href="/convert">CONVERT PDF</a><a href="/rotate">ROTATE PDF</a><a href="/watermark">WATERMARK PDF</a>
     </nav>
 </header>
 
@@ -92,13 +92,14 @@
 <input type="file" id="file-input" accept="application/pdf" style="display:none;">
 
 <script>
+    /* VARIABLES GLOBALES Y ESTADO */
     let loadedPdfBytes = null;
     let totalDocumentPages = 0;
     const selectedPages = new Set();
     let currentMode = 'range';
     let isAllSelected = false;
 
-    // Función unificada para manejar el cambio de modo
+    /* FUNCION PARA MANEJAR CAMBIO DE MODO */
     function handleModeToggle(mode) {
         if (mode === 'custom') {
             document.getElementById('radio-custom').checked = true;
@@ -120,6 +121,7 @@
         selectedPages.clear();
         isAllSelected = false;
         document.querySelectorAll('.thumb-wrapper').forEach(el => el.classList.remove('selected'));
+        document.getElementById('pages-to-extract-input').value = "";
         updateUI();
     }
 
@@ -143,7 +145,7 @@
                 const range = r.trim();
                 if (range.includes('-')) {
                     const [s, e] = range.split('-').map(Number);
-                    for (let i = s; i <= e; i++) if(i <= totalDocumentPages) selectedPages.add(i);
+                    for (let i = s; i <= e; i++) if(i > 0 && i <= totalDocumentPages) selectedPages.add(i);
                 } else if (!isNaN(range) && range !== "") {
                     selectedPages.add(Number(range));
                 }
@@ -173,6 +175,7 @@
         updateUI();
     }
 
+    /* LÓGICA DE CÁLCULO DE ARCHIVOS RESULTANTES */
     function updateUI() {
         if (document.getElementById('merge-extracted').checked) {
             document.getElementById('file-count-info').innerText = "Resulting files: 1";
@@ -194,6 +197,7 @@
         document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
     }
 
+    /* CARGA DE PDF */
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -213,7 +217,7 @@
             wrapper.innerHTML = `<canvas></canvas><div class="checkmark">✓</div>`;
             const canvas = wrapper.querySelector('canvas');
             const page = await pdf.getPage(i);
-            const vp = page.getViewport({ scale: 0.25 });
+            const vp = page.getViewport({ scale: 0.2 });
             canvas.height = vp.height; canvas.width = vp.width;
             await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
             
@@ -230,8 +234,45 @@
         }
     });
 
+    /* FUNCIONALIDAD DE SPLIT */
     async function executeSplit() {
-        alert("Processing: " + document.getElementById('file-count-info').innerText);
+        if (!loadedPdfBytes) return;
+        const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes);
+        const merge = document.getElementById('merge-extracted').checked;
+        const zip = new JSZip();
+
+        if (merge) {
+            const newPdf = await PDFLib.PDFDocument.create();
+            // Si hay páginas seleccionadas, usamos esas; si no, todas
+            const pagesToUse = selectedPages.size > 0 ? Array.from(selectedPages).sort((a,b)=>a-b) : Array.from({length: totalDocumentPages}, (_, i) => i + 1);
+            for (let i of pagesToUse) {
+                const [copiedPage] = await newPdf.copyPages(pdfDoc, [i - 1]);
+                newPdf.addPage(copiedPage);
+            }
+            const pdfBytes = await newPdf.save();
+            downloadBlob(new Blob([pdfBytes], {type: "application/pdf"}), "split_result.pdf");
+        } else {
+            // Separar páginas individualmente
+            const pagesToUse = selectedPages.size > 0 ? Array.from(selectedPages).sort((a,b)=>a-b) : Array.from({length: totalDocumentPages}, (_, i) => i + 1);
+            for (let i of pagesToUse) {
+                const newPdf = await PDFLib.PDFDocument.create();
+                const [copiedPage] = await newPdf.copyPages(pdfDoc, [i - 1]);
+                newPdf.addPage(copiedPage);
+                const bytes = await newPdf.save();
+                zip.file(`page_${i}.pdf`, bytes);
+            }
+            const content = await zip.generateAsync({type: "blob"});
+            downloadBlob(content, "split_results.zip");
+        }
+    }
+
+    function downloadBlob(blob, name) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 </script>
 </body>
