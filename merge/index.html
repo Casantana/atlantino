@@ -7,65 +7,68 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f4f7f9; padding: 40px; margin: 0; }
-        .main-wrapper { display: flex; gap: 30px; max-width: 1100px; margin: 0 auto; align-items: flex-start; }
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; }
+        /* Pantalla 1: Inicio */
+        #screen-start { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; }
+        /* Pantalla 2: Trabajo */
+        #screen-work { display: none; padding: 40px; display: flex; gap: 30px; max-width: 1100px; margin: 0 auto; }
         
-        .left-panel { flex: 3; background: white; padding: 25px; border-radius: 8px; min-height: 400px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        #file-list { display: flex; flex-wrap: wrap; gap: 20px; }
+        .btn-main { background: #d63031; color: white; padding: 20px 50px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1.2rem; box-shadow: 0 4px 15px rgba(214, 48, 49, 0.3); }
         
-        /* Miniaturas */
-        .file-item { width: 130px; height: 170px; background: #fff; border: 1px solid #ddd; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; cursor: grab; overflow: hidden; }
-        .file-item canvas { width: 100%; height: 130px; object-fit: cover; }
-        .file-item button { position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; cursor: pointer; width: 20px; }
-
-        /* Panel derecho (Azul iLovePDF) */
+        .left-panel { flex: 3; background: white; padding: 20px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 15px; }
+        .file-item { width: 120px; height: 160px; border: 1px solid #ddd; border-radius: 4px; position: relative; }
+        .add-more { width: 120px; height: 160px; border: 2px dashed #d63031; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #d63031; }
+        
         .right-panel { flex: 1; background: #eaf4ff; padding: 25px; border-radius: 8px; border: 1px solid #cce5ff; text-align: center; }
-        .btn-merge { width: 100%; padding: 18px; background: #d63031; color: white; border: none; border-radius: 5px; font-weight: 600; cursor: pointer; font-size: 1rem; margin-top: 40px; }
     </style>
 </head>
 <body>
 
-<div class="main-wrapper">
-    <div class="left-panel">
-        <input type="file" id="file-input" multiple accept="application/pdf" style="display:none;">
-        <div id="file-list">
-            <div id="upload-zone" style="width: 100%; padding: 100px 0; border: 2px dashed #ddd; border-radius: 8px; cursor: pointer;" onclick="document.getElementById('file-input').click()">
-                <button class="btn-merge" style="width: auto;">Select PDF files</button>
-            </div>
-        </div>
-    </div>
+<div id="screen-start">
+    <h1>Merge PDF files</h1>
+    <p>Combine PDFs in the order you want.</p>
+    <button class="btn-main" onclick="document.getElementById('file-input').click()">Select PDF files</button>
+</div>
 
+<div id="screen-work">
+    <div class="left-panel" id="file-list">
+        <div class="add-more" onclick="document.getElementById('file-input').click()">+ Add</div>
+    </div>
     <div class="right-panel">
         <h2>Merge PDF</h2>
-        <p style="font-size: 0.9rem; color: #004085;">To change the order of your PDFs, drag and drop the files as you want.</p>
-        <button id="merge-btn" class="btn-merge" style="display:none;">Merge PDF</button>
+        <button class="btn-main" style="width:100%" onclick="mergeFiles()">Merge PDF</button>
     </div>
 </div>
 
-<script>
-    const fileList = document.getElementById('file-list');
-    new Sortable(fileList, { animation: 150 });
+<input type="file" id="file-input" multiple accept="application/pdf" style="display:none;">
 
-    document.getElementById('file-input').addEventListener('change', async function(e) {
-        document.getElementById('upload-zone').style.display = 'none';
+<script>
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
+    const screenStart = document.getElementById('screen-start');
+    const screenWork = document.getElementById('screen-work');
+
+    fileInput.addEventListener('change', async function(e) {
+        screenStart.style.display = 'none';
+        screenWork.style.display = 'flex';
+        
         for (const file of e.target.files) {
             const div = document.createElement('div');
             div.className = 'file-item';
-            div.innerHTML = `<canvas></canvas><button onclick="this.parentElement.remove()">×</button>`;
+            div.innerHTML = `<canvas></canvas><button onclick="this.parentElement.remove()" style="position:absolute; top:0; right:0;">×</button>`;
             fileList.appendChild(div);
             
-            // Renderizar miniatura con PDF.js
             const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
             const page = await pdf.getPage(1);
             const canvas = div.querySelector('canvas');
             const context = canvas.getContext('2d');
-            const viewport = page.getViewport({ scale: 0.2 });
+            const viewport = page.getViewport({ scale: 0.15 });
             canvas.height = viewport.height;
             canvas.width = viewport.width;
             await page.render({ canvasContext: context, viewport }).promise;
         }
-        document.getElementById('merge-btn').style.display = 'block';
     });
+    new Sortable(fileList, { animation: 150 });
 </script>
 </body>
 </html>
