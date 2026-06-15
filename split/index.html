@@ -64,11 +64,13 @@
         </div>
 
         <div id="panel-range">
-            <input type="radio" name="rangeType" value="custom" checked onchange="handleRangeTypeChange()"> Custom Ranges<br>
-            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" oninput="applyCustomRanges()">
+            <input type="radio" name="rangeType" id="radio-custom" value="custom" checked> 
+            <label for="radio-custom">Custom Ranges</label><br>
+            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" oninput="document.getElementById('radio-custom').checked=true; updateUI();">
             <br>
-            <input type="radio" name="rangeType" value="fixed" onchange="handleRangeTypeChange()"> Fixed Ranges: 
-            <input type="number" id="fixed-pages" value="1" style="width:60px; padding:5px;" oninput="updateUI()">
+            <input type="radio" name="rangeType" id="radio-fixed" value="fixed"> 
+            <label for="radio-fixed">Fixed Ranges: </label>
+            <input type="number" id="fixed-pages" value="1" style="width:60px; padding:5px;" oninput="document.getElementById('radio-fixed').checked=true; updateUI();">
         </div>
 
         <div id="panel-pages" style="display:none;">
@@ -96,7 +98,6 @@
     let currentMode = 'range';
     let isAllSelected = false;
 
-    // Reseteo profundo de selección
     function clearSelection() {
         selectedPages.clear();
         isAllSelected = false;
@@ -113,10 +114,6 @@
         document.getElementById('tab-pages').className = mode === 'pages' ? 'tab-btn active' : 'tab-btn';
         document.getElementById('panel-range').style.display = mode === 'range' ? 'block' : 'none';
         document.getElementById('panel-pages').style.display = mode === 'pages' ? 'block' : 'none';
-    }
-
-    function handleRangeTypeChange() {
-        clearSelection();
         updateUI();
     }
 
@@ -136,27 +133,25 @@
         updateUI();
     }
 
-    function applyCustomRanges() {
-        const input = document.getElementById('custom-range').value;
-        const wrappers = document.querySelectorAll('.thumb-wrapper');
-        selectedPages.clear();
-        if (input.trim() === "") {
-            wrappers.forEach(el => el.classList.remove('selected'));
-        } else {
-            input.split(',').forEach(r => {
-                if (r.includes('-')) {
-                    const [s, e] = r.split('-').map(Number);
-                    for (let i = s; i <= e; i++) selectedPages.add(i);
-                } else {
-                    selectedPages.add(Number(r));
-                }
-            });
-            wrappers.forEach((el, idx) => {
-                if (selectedPages.has(idx + 1)) el.classList.add('selected');
-                else el.classList.remove('selected');
-            });
+    function updateUI() {
+        if (document.getElementById('merge-extracted').checked) {
+            document.getElementById('file-count-info').innerText = "Resulting files: 1";
+            return;
         }
-        updateUI();
+
+        let count = 0;
+        if (currentMode === 'range') {
+            if (document.getElementById('radio-custom').checked) {
+                const val = document.getElementById('custom-range').value;
+                count = val ? val.split(',').length : 0;
+            } else {
+                const pagesPerFile = parseInt(document.getElementById('fixed-pages').value) || 1;
+                count = Math.ceil(totalDocumentPages / pagesPerFile);
+            }
+        } else {
+            count = selectedPages.size;
+        }
+        document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
     }
 
     document.getElementById('file-input').addEventListener('change', async (e) => {
@@ -188,15 +183,11 @@
             };
             previewArea.appendChild(wrapper);
         }
+        updateUI();
     });
 
-    function updateUI() {
-        const count = document.getElementById('merge-extracted').checked ? 1 : (selectedPages.size || "Select pages");
-        document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
-    }
-
     async function executeSplit() {
-        alert("Processing: " + selectedPages.size + " pages.");
+        alert("Processing: " + (document.getElementById('file-count-info').innerText));
     }
 </script>
 </body>
