@@ -18,18 +18,15 @@
         .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
         .nav-links a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
         .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 30px; border: 1px dashed #cbd5e0; }
-        
         .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
         .split-panel { background: white; padding: 40px; border-radius: 12px; width: 420px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .tab-btn { padding: 12px 25px; cursor: pointer; border: 1px solid #ddd; background: #f9f9f9; flex: 1; text-align: center; font-weight: 600; transition: 0.3s; }
         .tab-btn.active { background: #d63031; color: white; border-color: #d63031; }
-        
         .preview-container { flex: 1; display: flex; flex-wrap: wrap; gap: 20px; }
         .thumb-wrapper { position: relative; width: 180px; height: 220px; border: 2px solid #ddd; cursor: pointer; overflow: hidden; background: white; transition: 0.2s; }
         .thumb-wrapper.selected { border-color: #27ae60; background: #eafaf1; }
         .checkmark { display: none; position: absolute; top: 8px; right: 8px; background: #27ae60; color: white; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; }
         .thumb-wrapper.selected .checkmark { display: flex; }
-        
         .btn-main { background: #d63031; color: white; padding: 15px 35px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 25px; font-size: 1.1rem; }
         .btn-extract { background: #3498db; color: white; padding: 18px 25px; border: none; border-radius: 6px; font-weight: 700; width: 100%; cursor: pointer; margin-bottom: 20px; text-transform: uppercase; }
         #file-count-info { margin-top: 20px; padding: 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; }
@@ -148,14 +145,18 @@
     }
 
     function toggleExtractAll() {
-        selectedPages.clear();
-        const wrappers = document.querySelectorAll('.thumb-wrapper');
-        for (let i = 1; i <= totalDocumentPages; i++) {
-            selectedPages.add(i);
-            wrappers[i - 1].classList.add('selected');
+        if (selectedPages.size === totalDocumentPages) {
+            clearSelection();
+        } else {
+            selectedPages.clear();
+            const wrappers = document.querySelectorAll('.thumb-wrapper');
+            for (let i = 1; i <= totalDocumentPages; i++) {
+                selectedPages.add(i);
+                wrappers[i - 1].classList.add('selected');
+            }
+            document.getElementById('pages-to-extract-input').value = "1-" + totalDocumentPages;
+            updateUI();
         }
-        document.getElementById('pages-to-extract-input').value = "1-" + totalDocumentPages;
-        updateUI();
     }
 
     function updateUI() {
@@ -204,16 +205,25 @@
         const zip = new JSZip();
 
         let groups = [];
-        if (currentMode === 'pages' || (merge && selectedPages.size > 0)) {
+        if (currentMode === 'pages') {
             groups = merge ? [Array.from(selectedPages).sort((a,b)=>a-b)] : Array.from(selectedPages).sort((a,b)=>a-b).map(p => [p]);
         } else if (currentMode === 'range' && document.getElementById('radio-custom').checked) {
-            document.getElementById('custom-range').value.split(',').forEach(r => {
-                let rangePages = [];
-                const [s, e] = r.split('-').map(Number);
-                for(let i=(s||0); i<=(e||s); i++) if(i > 0 && i <= totalDocumentPages) rangePages.push(i);
-                if(rangePages.length > 0) groups.push(rangePages);
-            });
-            if (merge) groups = [groups.flat()];
+            let ranges = document.getElementById('custom-range').value.split(',');
+            if (merge) {
+                let all = [];
+                ranges.forEach(r => { 
+                    const [s, e] = r.split('-').map(Number);
+                    for(let i=(s||0); i<=(e||s); i++) if(i>0 && i<=totalDocumentPages) all.push(i);
+                });
+                groups = [all];
+            } else {
+                ranges.forEach(r => {
+                    let rangePages = [];
+                    const [s, e] = r.split('-').map(Number);
+                    for(let i=(s||0); i<=(e||s); i++) if(i>0 && i<=totalDocumentPages) rangePages.push(i);
+                    if(rangePages.length > 0) groups.push(rangePages);
+                });
+            }
         } else {
             const step = parseInt(document.getElementById('fixed-pages').value) || 1;
             let all = Array.from({length: totalDocumentPages}, (_, i) => i + 1);
@@ -229,10 +239,10 @@
                 const [copiedPage] = await newPdf.copyPages(pdfDoc, [p - 1]);
                 newPdf.addPage(copiedPage);
             }
-            if (merge) downloadBlob(new Blob([await newPdf.save()], {type: "application/pdf"}), "merged.pdf");
-            else zip.file(`part_${i+1}.pdf`, await newPdf.save());
+            if (merge) downloadBlob(new Blob([await newPdf.save()], {type: "application/pdf"}), "merged_output.pdf");
+            else zip.file(`split_part_${i+1}.pdf`, await newPdf.save());
         }
-        if (!merge) downloadBlob(await zip.generateAsync({type: "blob"}), "split_files.zip");
+        if (!merge && groups.length > 0) downloadBlob(await zip.generateAsync({type: "blob"}), "split_files.zip");
     }
 
     function downloadBlob(blob, name) {
