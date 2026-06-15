@@ -6,34 +6,30 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; padding: 0; }
-        
-        /* Pantalla de Inicio */
-        #screen-start { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-        
-        /* Pantalla de Trabajo */
-        #screen-work { display: none; padding: 40px; max-width: 1100px; margin: 0 auto; gap: 30px; }
-        
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; }
+        .screen { display: none; height: 100vh; align-items: center; justify-content: center; flex-direction: column; }
+        #screen-start { display: flex; }
         .btn-main { background: #d63031; color: white; padding: 18px 40px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1.1rem; box-shadow: 0 4px 10px rgba(214, 48, 49, 0.3); }
         
-        /* Layout de Trabajo */
+        /* Layout Trabajo */
+        #screen-work { display: none; padding: 40px; max-width: 1100px; margin: 0 auto; gap: 30px; flex-direction: row; height: auto; }
         .left-panel { flex: 3; background: white; padding: 20px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 15px; min-height: 400px; border: 1px solid #ddd; }
         .file-item { width: 120px; height: 160px; border: 1px solid #ccc; border-radius: 4px; position: relative; cursor: grab; background: #fff; }
         .add-more { width: 120px; height: 160px; border: 2px dashed #d63031; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #d63031; font-weight: bold; }
-        
         .right-panel { flex: 1; background: #eaf4ff; padding: 25px; border-radius: 8px; border: 1px solid #cce5ff; height: fit-content; }
     </style>
 </head>
 <body>
 
-<div id="screen-start">
+<div id="screen-start" class="screen">
     <h1>Merge PDF files</h1>
     <p style="color: #636e72; margin-bottom: 30px;">Combine PDFs in the order you want.</p>
     <button class="btn-main" onclick="document.getElementById('file-input').click()">Select PDF files</button>
 </div>
 
-<div id="screen-work">
+<div id="screen-work" class="screen">
     <div class="left-panel" id="file-list">
         <div class="add-more" onclick="document.getElementById('file-input').click()">+ Add</div>
     </div>
@@ -44,25 +40,26 @@
     </div>
 </div>
 
+<div id="screen-download" class="screen">
+    <h1>Your PDF is ready!</h1>
+    <button class="btn-main" onclick="downloadResult()">Download Merged PDF</button>
+</div>
+
 <input type="file" id="file-input" multiple accept="application/pdf" style="display:none;">
 
 <script>
-    const screenStart = document.getElementById('screen-start');
-    const screenWork = document.getElementById('screen-work');
+    let finalPdfBytes = null;
     const fileList = document.getElementById('file-list');
     const addMoreBtn = document.querySelector('.add-more');
 
     document.getElementById('file-input').addEventListener('change', async function(e) {
-        if (e.target.files.length === 0) return;
-        
-        // Ocultar inicio, mostrar trabajo
-        screenStart.style.display = 'none';
-        screenWork.style.display = 'flex';
+        document.getElementById('screen-start').style.display = 'none';
+        document.getElementById('screen-work').style.display = 'flex';
         
         for (const file of e.target.files) {
             const div = document.createElement('div');
             div.className = 'file-item';
-            div.innerHTML = `<canvas style="width:100%; height:80%"></canvas><button onclick="this.parentElement.remove()" style="position:absolute; top:2px; right:2px; cursor:pointer;">×</button>`;
+            div.innerHTML = `<canvas style="width:100%; height:80%"></canvas><button onclick="this.parentElement.remove()" style="position:absolute; top:2px; right:2px;">×</button>`;
             fileList.insertBefore(div, addMoreBtn);
             
             const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
@@ -72,13 +69,36 @@
             const viewport = page.getViewport({ scale: 0.15 });
             canvas.height = viewport.height; canvas.width = viewport.width;
             await page.render({ canvasContext: context, viewport }).promise;
+            div.dataset.file = URL.createObjectURL(file);
         }
     });
 
     new Sortable(fileList, { animation: 150 });
 
-    function mergeFiles() {
-        alert("Procesando unión de PDFs...");
+    async function mergeFiles() {
+        const { PDFDocument } = PDFLib;
+        const mergedPdf = await PDFDocument.create();
+        const items = document.querySelectorAll('.file-item');
+        
+        for (const item of items) {
+            const response = await fetch(item.dataset.file);
+            const pdf = await PDFDocument.load(await response.arrayBuffer());
+            const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+            pages.forEach(p => mergedPdf.addPage(p));
+        }
+
+        finalPdfBytes = await mergedPdf.save();
+        document.getElementById('screen-work').style.display = 'none';
+        document.getElementById('screen-download').style.display = 'flex';
+        downloadResult();
+    }
+
+    function downloadResult() {
+        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'merged_atlantino.pdf';
+        link.click();
     }
 </script>
 </body>
