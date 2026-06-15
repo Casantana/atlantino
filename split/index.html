@@ -90,6 +90,10 @@
 <input type="file" id="file-input" accept="application/pdf" style="display:none;">
 
 <script>
+    // Configura el worker de PDF.js (evita el warning "Setting up fake worker"
+    // y el aviso de GlobalWorkerOptions.workerSrc no especificado).
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
+
     let loadedPdfBytes = null;   // Mantiene SIEMPRE el ArrayBuffer original intacto
     let totalDocumentPages = 0;
     const selectedPages = new Set();
