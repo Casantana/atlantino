@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <title>Merge PDF - Atlantino Tools</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; }
         
-        /* Barra superior */
+        /* Barra superior profesional */
         header { background: #fff; padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
         .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
-        .nav-links a { margin-left: 20px; color: #4a5568; text-decoration: none; font-size: 0.9rem; }
+        .nav-links a { margin-left: 20px; color: #2d3436; text-decoration: none; font-size: 0.95rem; font-weight: 700; }
+        .nav-links a:hover { color: #d63031; }
 
         .screen { display: none; height: calc(100vh - 70px); align-items: center; justify-content: center; flex-direction: column; }
         #screen-start { display: flex; }
@@ -25,7 +26,6 @@
         .left-panel { flex: 3; background: white; padding: 30px; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 20px; min-height: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .file-item { width: 130px; height: 170px; border: 1px solid #e2e8f0; border-radius: 8px; position: relative; cursor: grab; background: #fff; }
         .add-more { width: 130px; height: 170px; border: 2px dashed #d63031; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #d63031; font-weight: 600; }
-        
         .right-panel { flex: 1; background: #eaf4ff; padding: 30px; border-radius: 12px; border: 1px solid #cce5ff; height: fit-content; }
     </style>
 </head>
@@ -34,9 +34,12 @@
 <header>
     <a href="https://tools.atlantino.ca" class="logo">Atlantino Tools</a>
     <nav class="nav-links">
-        <a href="https://tools.atlantino.ca/merge">Merge PDF</a>
-        <a href="#">Split PDF</a>
-        <a href="#">Compress</a>
+        <a href="/merge">Merge</a>
+        <a href="/split">Split</a>
+        <a href="/compress">Compress</a>
+        <a href="/convert">Convert</a>
+        <a href="/rotate">Rotate</a>
+        <a href="/watermark">Watermark</a>
     </nav>
 </header>
 
