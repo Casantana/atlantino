@@ -22,7 +22,7 @@
         .split-panel { background: white; padding: 40px; border-radius: 12px; width: 420px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .tab-btn { padding: 12px 25px; cursor: pointer; border: 1px solid #ddd; background: #f9f9f9; flex: 1; text-align: center; font-weight: 600; transition: 0.3s; }
         .tab-btn.active { background: #d63031; color: white; border-color: #d63031; }
-        .preview-container { flex: 1; display: flex; flex-wrap: wrap; gap: 20px; }
+        .preview-container { flex: 1; display: flex; flex-wrap: wrap; gap: 20px; align-content: flex-start; }
         .thumb-wrapper { position: relative; width: 180px; height: 220px; border: 2px solid #ddd; cursor: pointer; overflow: hidden; background: white; transition: 0.2s; }
         .thumb-wrapper.selected { border-color: #27ae60; background: #eafaf1; }
         .checkmark { display: none; position: absolute; top: 8px; right: 8px; background: #27ae60; color: white; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; }
@@ -30,6 +30,7 @@
         .btn-main { background: #d63031; color: white; padding: 15px 35px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 25px; font-size: 1.1rem; }
         .btn-extract { background: #3498db; color: white; padding: 18px 25px; border: none; border-radius: 6px; font-weight: 700; width: 100%; cursor: pointer; margin-bottom: 20px; text-transform: uppercase; }
         #file-count-info { margin-top: 20px; padding: 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; }
+        canvas { display: block; max-width: 100%; max-height: 100%; margin: 0 auto; }
     </style>
 </head>
 <body>
@@ -67,7 +68,7 @@
             <br>
             <input type="radio" name="rangeType" id="radio-fixed" value="fixed" onchange="resetRangeInputs()"> 
             <label for="radio-fixed" style="font-weight:700;">Fixed Ranges: </label>
-            <input type="number" id="fixed-pages" value="1" style="width:60px; padding:5px;" onfocus="handleModeToggle('fixed')" oninput="updateUI()">
+            <input type="number" id="fixed-pages" value="1" min="1" style="width:60px; padding:5px;" onfocus="handleModeToggle('fixed')" oninput="updateUI()">
         </div>
 
         <div id="panel-pages" style="display:none;">
@@ -89,7 +90,7 @@
 <input type="file" id="file-input" accept="application/pdf" style="display:none;">
 
 <script>
-    let loadedPdfBytes = null;
+    let loadedPdfBytes = null;   // Mantiene SIEMPRE el ArrayBuffer original intacto
     let totalDocumentPages = 0;
     const selectedPages = new Set();
     let currentMode = 'range';
@@ -161,21 +162,87 @@
 
     function updateUI() {
         let count = 0;
-        if (document.getElementById('merge-extracted').checked) { count = 1; }
-        else if (currentMode === 'range') {
-            if (document.getElementById('radio-custom').checked) { count = document.getElementById('custom-range').value ? document.getElementById('custom-range').value.split(',').length : 0; }
-            else { count = Math.ceil(totalDocumentPages / (parseInt(document.getElementById('fixed-pages').value) || 1)); }
-        } else { count = selectedPages.size; }
+        if (currentMode === 'range') {
+            let groups = computeRangeGroups();
+            count = groups.length;
+        } else {
+            if (document.getElementById('merge-extracted').checked) {
+                count = selectedPages.size > 0 ? 1 : 0;
+            } else {
+                count = selectedPages.size;
+            }
+        }
         document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
+    }
+
+    // Calcula los grupos de páginas para el modo "Range" (custom o fixed),
+    // teniendo en cuenta si "merge" está activado. Se reutiliza tanto en
+    // updateUI() (para el contador) como en executeSplit() (para generar los PDFs).
+    function computeRangeGroups() {
+        const merge = document.getElementById('merge-extracted').checked;
+
+        if (document.getElementById('radio-custom').checked) {
+            const raw = document.getElementById('custom-range').value.trim();
+            if (raw === "") return [];
+            let all = [];
+            raw.split(',').forEach(r => {
+                const range = r.trim();
+                if (range === "") return;
+                if (range.includes('-')) {
+                    const [s, e] = range.split('-').map(Number);
+                    for (let i = (s || 0); i <= (e || s); i++) {
+                        if (i > 0 && i <= totalDocumentPages) all.push(i);
+                    }
+                } else if (!isNaN(range)) {
+                    const p = Number(range);
+                    if (p > 0 && p <= totalDocumentPages) all.push(p);
+                }
+            });
+            if (all.length === 0) return [];
+            return merge ? [all] : raw.split(',').map(r => {
+                const range = r.trim();
+                let group = [];
+                if (range.includes('-')) {
+                    const [s, e] = range.split('-').map(Number);
+                    for (let i = (s || 0); i <= (e || s); i++) {
+                        if (i > 0 && i <= totalDocumentPages) group.push(i);
+                    }
+                } else if (!isNaN(range) && range !== "") {
+                    const p = Number(range);
+                    if (p > 0 && p <= totalDocumentPages) group.push(p);
+                }
+                return group;
+            }).filter(g => g.length > 0);
+        } else {
+            // Fixed ranges
+            const step = parseInt(document.getElementById('fixed-pages').value) || 1;
+            if (totalDocumentPages === 0) return [];
+            let all = Array.from({length: totalDocumentPages}, (_, i) => i + 1);
+            if (merge) return [all];
+            let groups = [];
+            for (let i = 0; i < all.length; i += step) groups.push(all.slice(i, i + step));
+            return groups;
+        }
     }
 
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Guardamos el ArrayBuffer original SIN tocar.
         loadedPdfBytes = await file.arrayBuffer();
+
         document.getElementById('screen-start').style.display = 'none';
         document.getElementById('screen-work').style.display = 'flex';
-        const pdf = await pdfjsLib.getDocument(loadedPdfBytes).promise;
+
+        // IMPORTANTE: a pdf.js le pasamos una COPIA (slice(0)).
+        // pdf.js transfiere el buffer a su Web Worker y lo "detacha" (lo deja
+        // inservible). Si le pasáramos loadedPdfBytes directamente, quedaría
+        // inutilizable para pdf-lib más adelante, provocando el error
+        // "Cannot perform Construct on a detached ArrayBuffer".
+        const previewCopy = loadedPdfBytes.slice(0);
+        const pdf = await pdfjsLib.getDocument({ data: previewCopy }).promise;
+
         totalDocumentPages = pdf.numPages;
         const previewArea = document.getElementById('preview-area');
         previewArea.innerHTML = '';
@@ -185,9 +252,11 @@
             wrapper.innerHTML = `<canvas></canvas><div class="checkmark">✓</div>`;
             const canvas = wrapper.querySelector('canvas');
             const page = await pdf.getPage(i);
-            const vp = page.getViewport({ scale: 0.2 });
-            canvas.height = vp.height; canvas.width = vp.width;
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+            const vp = page.getViewport({ scale: 0.4 });
+            const scale = Math.min(176 / vp.width, 216 / vp.height);
+            const scaledViewport = page.getViewport({ scale });
+            canvas.height = scaledViewport.height; canvas.width = scaledViewport.width;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledViewport }).promise;
             wrapper.onclick = () => {
                 if (selectedPages.has(i)) selectedPages.delete(i); else selectedPages.add(i);
                 wrapper.classList.toggle('selected');
@@ -196,55 +265,54 @@
             };
             previewArea.appendChild(wrapper);
         }
+        updateUI();
     });
 
     async function executeSplit() {
         if (!loadedPdfBytes) return;
         const merge = document.getElementById('merge-extracted').checked;
-        const zip = new JSZip();
 
         let groups = [];
         if (currentMode === 'pages') {
-            groups = merge ? [Array.from(selectedPages).sort((a,b)=>a-b)] : Array.from(selectedPages).sort((a,b)=>a-b).map(p => [p]);
-        } else if (currentMode === 'range' && document.getElementById('radio-custom').checked) {
-            let ranges = document.getElementById('custom-range').value.split(',');
-            let all = [];
-            ranges.forEach(r => { 
-                const [s, e] = r.split('-').map(Number);
-                for(let i=(s||0); i<=(e||s); i++) if(i>0 && i<=totalDocumentPages) all.push(i);
-            });
-            groups = merge ? [all] : all.map(p => [p]);
+            const sorted = Array.from(selectedPages).sort((a,b)=>a-b);
+            if (sorted.length === 0) { alert("Selecciona al menos una página."); return; }
+            groups = merge ? [sorted] : sorted.map(p => [p]);
         } else {
-            const step = parseInt(document.getElementById('fixed-pages').value) || 1;
-            let all = Array.from({length: totalDocumentPages}, (_, i) => i + 1);
-            if (merge) groups = [all];
-            else {
-                for (let i = 0; i < all.length; i += step) groups.push(all.slice(i, i + step));
-            }
+            groups = computeRangeGroups();
+            if (groups.length === 0) { alert("Indica un rango de páginas válido."); return; }
         }
 
-        // Corrección: Crear copia independiente por cada archivo para evitar error de detached ArrayBuffer
+        const zip = new JSZip();
+        let downloadedSingle = false;
+
         for (let i = 0; i < groups.length; i++) {
             if (groups[i].length === 0) continue;
-            
-            const pdfDoc = await PDFLib.PDFDocument.load(new Uint8Array(loadedPdfBytes));
+
+            // Cada iteración usa su PROPIA copia del ArrayBuffer original
+            // (loadedPdfBytes.slice(0)) para que PDFDocument.load no detache
+            // el buffer compartido y rompa la siguiente iteración.
+            const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes.slice(0));
             const newPdf = await PDFLib.PDFDocument.create();
-            
-            for(let pNum of groups[i]) {
+
+            for (let pNum of groups[i]) {
                 const [copiedPage] = await newPdf.copyPages(pdfDoc, [pNum - 1]);
                 newPdf.addPage(copiedPage);
             }
-            
+
             const pdfBytes = await newPdf.save();
-            
+
             if (merge) {
-                downloadBlob(new Blob([pdfBytes], {type: "application/pdf"}), "merged_output.pdf");
-                return;
+                downloadBlob(new Blob([pdfBytes], { type: "application/pdf" }), "merged_output.pdf");
+                downloadedSingle = true;
+                break;
             } else {
-                zip.file(`split_part_${i+1}.pdf`, pdfBytes);
+                zip.file(`split_part_${i + 1}.pdf`, pdfBytes);
             }
         }
-        if (!merge && groups.length > 0) downloadBlob(await zip.generateAsync({type: "blob"}), "split_files.zip");
+
+        if (!merge && !downloadedSingle) {
+            downloadBlob(await zip.generateAsync({ type: "blob" }), "split_files.zip");
+        }
     }
 
     function downloadBlob(blob, name) {
