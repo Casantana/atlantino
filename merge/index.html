@@ -2,56 +2,76 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Merge PDF - Atlantino Tools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" />
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f7f9; }
-        #dropzone { border: 2px dashed #d63031; border-radius: 15px; background: white; min-height: 200px; padding: 20px; }
-        .btn-merge { display: none; margin-top: 20px; padding: 15px 40px; background: #d63031; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.2rem; }
+        :root { --primary-red: #d63031; }
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; padding: 40px 20px; color: #2d3436; }
+        .container { max-width: 900px; margin: 0 auto; text-align: center; }
+        
+        /* Dropzone estilizado */
+        .dropzone { border: 2px dashed #cbd5e0; border-radius: 15px; background: white; min-height: 250px; padding: 40px; }
+        .dz-message { margin: 40px 0; }
+        
+        .btn-main { background: var(--primary-red); color: white; padding: 18px 45px; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(214, 48, 49, 0.3); transition: 0.3s; }
+        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(214, 48, 49, 0.4); }
+        
+        #merge-btn { display: none; margin-top: 30px; }
+        .dz-preview { margin: 10px !important; }
     </style>
 </head>
 <body>
 
+<div class="container">
     <h1>Merge PDF files</h1>
-    <p>Combine PDFs in the order you want.</p>
+    <p style="margin-bottom: 40px; color: #636e72;">Combine PDFs in the order you want with the easiest PDF merger available.</p>
 
-    <form action="/upload" class="dropzone" id="dropzone"></form>
-    
-    <button id="merge-btn" class="btn-merge" onclick="processMerge()">Merge PDF</button>
+    <form action="/upload" class="dropzone" id="myDropzone">
+        <div class="dz-message">
+            <button type="button" class="btn-main">Select PDF files</button>
+            <p style="margin-top: 15px;">or drop PDFs here</p>
+        </div>
+    </form>
 
-    <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <button id="merge-btn" class="btn-main" onclick="processMerge()">Merge PDF</button>
+</div>
 
-    <script>
-        // Configuración de Dropzone
-        Dropzone.options.dropzone = {
-            acceptedFiles: ".pdf",
-            init: function() {
-                this.on("addedfile", () => {
-                    document.getElementById('merge-btn').style.display = 'inline-block';
-                });
-            }
-        };
+<script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
-        async function processMerge() {
-            const files = Dropzone.forElement("#dropzone").getAcceptedFiles();
-            const { PDFDocument } = PDFLib;
-            const mergedPdf = await PDFDocument.create();
-
-            for (const file of files) {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await PDFDocument.load(arrayBuffer);
-                const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-                copiedPages.forEach(page => mergedPdf.addPage(page));
-            }
-
-            const pdfBytes = await mergedPdf.save();
-            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'merged_atlantino.pdf';
-            link.click();
+<script>
+    Dropzone.options.myDropzone = {
+        acceptedFiles: ".pdf",
+        init: function() {
+            this.on("addedfile", () => {
+                document.getElementById('merge-btn').style.display = 'inline-block';
+            });
         }
-    </script>
+    };
+
+    async function processMerge() {
+        const files = Dropzone.forElement("#myDropzone").getAcceptedFiles();
+        if (files.length < 2) return alert("Please upload at least 2 files");
+
+        const { PDFDocument } = PDFLib;
+        const mergedPdf = await PDFDocument.create();
+
+        for (const file of files) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await PDFDocument.load(arrayBuffer);
+            const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+            copiedPages.forEach(page => mergedPdf.addPage(page));
+        }
+
+        const pdfBytes = await mergedPdf.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'merged_atlantino.pdf';
+        link.click();
+    }
+</script>
 </body>
 </html>
