@@ -84,7 +84,7 @@
             <label for="merge-extracted">Merge extracted pages into one PDF</label>
         </div>
         
-        <div id="file-count-info">Resulting files: Calculating...</div>
+        <div id="file-count-info">Resulting files: 0</div>
         <button class="btn-main" onclick="executeSplit()">SPLIT PDF</button>
     </div>
 </div>
@@ -96,7 +96,6 @@
     let totalDocumentPages = 0;
     const selectedPages = new Set();
     let currentMode = 'range';
-    let isAllSelected = false;
 
     function handleModeToggle(mode) {
         if (mode === 'custom') { document.getElementById('radio-custom').checked = true; document.getElementById('fixed-pages').value = "1"; } 
@@ -112,7 +111,6 @@
 
     function clearSelection() {
         selectedPages.clear();
-        isAllSelected = false;
         document.querySelectorAll('.thumb-wrapper').forEach(el => el.classList.remove('selected'));
         document.getElementById('pages-to-extract-input').value = "";
         updateUI();
@@ -145,22 +143,18 @@
             if (selectedPages.has(idx + 1)) el.classList.add('selected');
             else el.classList.remove('selected');
         });
+        document.getElementById('pages-to-extract-input').value = Array.from(selectedPages).sort((a,b)=>a-b).join(', ');
         updateUI();
     }
 
     function toggleExtractAll() {
-        isAllSelected = !isAllSelected;
         selectedPages.clear();
         const wrappers = document.querySelectorAll('.thumb-wrapper');
-        wrappers.forEach((el, idx) => {
-            if (isAllSelected) {
-                selectedPages.add(idx + 1);
-                el.classList.add('selected');
-            } else {
-                el.classList.remove('selected');
-            }
-        });
-        document.getElementById('pages-to-extract-input').value = isAllSelected ? "All pages selected" : "";
+        for (let i = 1; i <= totalDocumentPages; i++) {
+            selectedPages.add(i);
+            wrappers[i - 1].classList.add('selected');
+        }
+        document.getElementById('pages-to-extract-input').value = "1-" + totalDocumentPages;
         updateUI();
     }
 
@@ -194,12 +188,10 @@
             canvas.height = vp.height; canvas.width = vp.width;
             await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
             wrapper.onclick = () => {
-                if (currentMode === 'pages') {
-                    if (selectedPages.has(i)) selectedPages.delete(i); else selectedPages.add(i);
-                    wrapper.classList.toggle('selected');
-                    document.getElementById('pages-to-extract-input').value = Array.from(selectedPages).sort((a,b)=>a-b).join(', ');
-                    updateUI();
-                }
+                if (selectedPages.has(i)) selectedPages.delete(i); else selectedPages.add(i);
+                wrapper.classList.toggle('selected');
+                document.getElementById('pages-to-extract-input').value = Array.from(selectedPages).sort((a,b)=>a-b).join(', ');
+                updateUI();
             };
             previewArea.appendChild(wrapper);
         }
@@ -211,59 +203,42 @@
         const merge = document.getElementById('merge-extracted').checked;
         const zip = new JSZip();
 
-        // Determinar qué páginas incluir
         let groups = [];
-        if (merge) {
-            let p = [];
-            if (currentMode === 'pages') p = Array.from(selectedPages).sort((a,b)=>a-b);
-            else if (currentMode === 'range' && document.getElementById('radio-custom').checked) p = Array.from(selectedPages).sort((a,b)=>a-b);
-            else p = Array.from({length: totalDocumentPages}, (_, i) => i + 1);
-            groups = [p];
+        if (currentMode === 'pages' || (merge && selectedPages.size > 0)) {
+            groups = merge ? [Array.from(selectedPages).sort((a,b)=>a-b)] : Array.from(selectedPages).sort((a,b)=>a-b).map(p => [p]);
+        } else if (currentMode === 'range' && document.getElementById('radio-custom').checked) {
+            document.getElementById('custom-range').value.split(',').forEach(r => {
+                let rangePages = [];
+                const [s, e] = r.split('-').map(Number);
+                for(let i=(s||0); i<=(e||s); i++) if(i > 0 && i <= totalDocumentPages) rangePages.push(i);
+                if(rangePages.length > 0) groups.push(rangePages);
+            });
+            if (merge) groups = [groups.flat()];
         } else {
-            if (currentMode === 'pages') groups = Array.from(selectedPages).sort((a,b)=>a-b).map(p => [p]);
-            else if (currentMode === 'range' && document.getElementById('radio-custom').checked) {
-                document.getElementById('custom-range').value.split(',').forEach(r => {
-                    let rangePages = [];
-                    const [s, e] = r.split('-').map(Number);
-                    for(let i=(s||0); i<=(e||s); i++) if(i <= totalDocumentPages) rangePages.push(i);
-                    if(rangePages.length > 0) groups.push(rangePages);
-                });
-            } else {
-                const step = parseInt(document.getElementById('fixed-pages').value) || 1;
-                for (let i = 1; i <= totalDocumentPages; i += step) {
-                    let g = [];
-                    for(let j=0; j<step && (i+j) <= totalDocumentPages; j++) g.push(i+j);
-                    groups.push(g);
-                }
+            const step = parseInt(document.getElementById('fixed-pages').value) || 1;
+            let all = Array.from({length: totalDocumentPages}, (_, i) => i + 1);
+            if (merge) groups = [all];
+            else {
+                for (let i = 0; i < all.length; i += step) groups.push(all.slice(i, i + step));
             }
         }
 
-        // Crear los archivos
-        if (merge && groups.length > 0) {
+        for (let i = 0; i < groups.length; i++) {
             const newPdf = await PDFLib.PDFDocument.create();
-            for (let p of groups[0]) {
-                const [copied] = await newPdf.copyPages(pdfDoc, [p - 1]);
-                newPdf.addPage(copied);
+            for(let p of groups[i]) {
+                const [copiedPage] = await newPdf.copyPages(pdfDoc, [p - 1]);
+                newPdf.addPage(copiedPage);
             }
-            downloadBlob(new Blob([await newPdf.save()], {type: "application/pdf"}), "merged_output.pdf");
-        } else {
-            for (let i = 0; i < groups.length; i++) {
-                const newPdf = await PDFLib.PDFDocument.create();
-                for(let p of groups[i]) {
-                    const [copied] = await newPdf.copyPages(pdfDoc, [p - 1]);
-                    newPdf.addPage(copied);
-                }
-                zip.file(`part_${i+1}.pdf`, await newPdf.save());
-            }
-            downloadBlob(await zip.generateAsync({type: "blob"}), "split_files.zip");
+            if (merge) downloadBlob(new Blob([await newPdf.save()], {type: "application/pdf"}), "merged.pdf");
+            else zip.file(`part_${i+1}.pdf`, await newPdf.save());
         }
+        if (!merge) downloadBlob(await zip.generateAsync({type: "blob"}), "split_files.zip");
     }
 
     function downloadBlob(blob, name) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = name; a.click();
-        URL.revokeObjectURL(url);
     }
 </script>
 </body>
