@@ -200,7 +200,8 @@
 
     async function executeSplit() {
         if (!loadedPdfBytes) return;
-        const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes);
+        // Creamos una copia del buffer para evitar el error de ArrayBuffer desasociado
+        const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes.slice(0));
         const merge = document.getElementById('merge-extracted').checked;
         const zip = new JSZip();
 
@@ -227,13 +228,12 @@
         for (let i = 0; i < groups.length; i++) {
             if (groups[i].length === 0) continue;
             const newPdf = await PDFLib.PDFDocument.create();
-            // CORRECCIÓN AQUÍ: Copiamos página por página individualmente para evitar errores de índice
             for(let pNum of groups[i]) {
                 const [copiedPage] = await newPdf.copyPages(pdfDoc, [pNum - 1]);
                 newPdf.addPage(copiedPage);
             }
-            
             const pdfBytes = await newPdf.save();
+            
             if (merge) {
                 downloadBlob(new Blob([pdfBytes], {type: "application/pdf"}), "merged_output.pdf");
                 return;
