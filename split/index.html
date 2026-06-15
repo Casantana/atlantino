@@ -224,18 +224,19 @@
             }
         }
 
-        // Procesamiento real de división
         for (let i = 0; i < groups.length; i++) {
             if (groups[i].length === 0) continue;
             const newPdf = await PDFLib.PDFDocument.create();
-            // Crucial: copyPages espera un array de índices de página
-            const copiedPages = await newPdf.copyPages(pdfDoc, groups[i].map(p => p - 1));
-            copiedPages.forEach(p => newPdf.addPage(p));
+            // CORRECCIÓN AQUÍ: Copiamos página por página individualmente para evitar errores de índice
+            for(let pNum of groups[i]) {
+                const [copiedPage] = await newPdf.copyPages(pdfDoc, [pNum - 1]);
+                newPdf.addPage(copiedPage);
+            }
             
             const pdfBytes = await newPdf.save();
             if (merge) {
                 downloadBlob(new Blob([pdfBytes], {type: "application/pdf"}), "merged_output.pdf");
-                return; // Solo una descarga si es merge
+                return;
             } else {
                 zip.file(`split_part_${i+1}.pdf`, pdfBytes);
             }
