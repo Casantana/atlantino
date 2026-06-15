@@ -145,11 +145,11 @@
     }
 
     function toggleExtractAll() {
+        const wrappers = document.querySelectorAll('.thumb-wrapper');
         if (selectedPages.size === totalDocumentPages) {
             clearSelection();
         } else {
             selectedPages.clear();
-            const wrappers = document.querySelectorAll('.thumb-wrapper');
             for (let i = 1; i <= totalDocumentPages; i++) {
                 selectedPages.add(i);
                 wrappers[i - 1].classList.add('selected');
@@ -209,21 +209,12 @@
             groups = merge ? [Array.from(selectedPages).sort((a,b)=>a-b)] : Array.from(selectedPages).sort((a,b)=>a-b).map(p => [p]);
         } else if (currentMode === 'range' && document.getElementById('radio-custom').checked) {
             let ranges = document.getElementById('custom-range').value.split(',');
-            if (merge) {
-                let all = [];
-                ranges.forEach(r => { 
-                    const [s, e] = r.split('-').map(Number);
-                    for(let i=(s||0); i<=(e||s); i++) if(i>0 && i<=totalDocumentPages) all.push(i);
-                });
-                groups = [all];
-            } else {
-                ranges.forEach(r => {
-                    let rangePages = [];
-                    const [s, e] = r.split('-').map(Number);
-                    for(let i=(s||0); i<=(e||s); i++) if(i>0 && i<=totalDocumentPages) rangePages.push(i);
-                    if(rangePages.length > 0) groups.push(rangePages);
-                });
-            }
+            let all = [];
+            ranges.forEach(r => { 
+                const [s, e] = r.split('-').map(Number);
+                for(let i=(s||0); i<=(e||s); i++) if(i>0 && i<=totalDocumentPages) all.push(i);
+            });
+            groups = merge ? [all] : all.map(p => [p]);
         } else {
             const step = parseInt(document.getElementById('fixed-pages').value) || 1;
             let all = Array.from({length: totalDocumentPages}, (_, i) => i + 1);
@@ -234,6 +225,7 @@
         }
 
         for (let i = 0; i < groups.length; i++) {
+            if (groups[i].length === 0) continue;
             const newPdf = await PDFLib.PDFDocument.create();
             for(let p of groups[i]) {
                 const [copiedPage] = await newPdf.copyPages(pdfDoc, [p - 1]);
@@ -249,6 +241,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = name; a.click();
+        URL.revokeObjectURL(url);
     }
 </script>
 </body>
