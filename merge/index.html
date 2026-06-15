@@ -1,38 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Merge PDF - Atlantino Tools</title>
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" />
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f7f9; }
+        #dropzone { border: 2px dashed #d63031; border-radius: 15px; background: white; min-height: 200px; padding: 20px; }
+        .btn-merge { display: none; margin-top: 20px; padding: 15px 40px; background: #d63031; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.2rem; }
+    </style>
 </head>
 <body>
-    <h1>Merge PDF</h1>
-    <input type="file" id="file1" accept="application/pdf">
-    <input type="file" id="file2" accept="application/pdf">
-    <button onclick="merge()">Merge Files</button>
+
+    <h1>Merge PDF files</h1>
+    <p>Combine PDFs in the order you want.</p>
+
+    <form action="/upload" class="dropzone" id="dropzone"></form>
+    
+    <button id="merge-btn" class="btn-merge" onclick="processMerge()">Merge PDF</button>
+
+    <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
     <script>
-        async function merge() {
-            const file1 = document.getElementById('file1').files[0];
-            const file2 = document.getElementById('file2').files[0];
-            
-            const arrayBuffer1 = await file1.arrayBuffer();
-            const arrayBuffer2 = await file2.arrayBuffer();
+        // Configuración de Dropzone
+        Dropzone.options.dropzone = {
+            acceptedFiles: ".pdf",
+            init: function() {
+                this.on("addedfile", () => {
+                    document.getElementById('merge-btn').style.display = 'inline-block';
+                });
+            }
+        };
 
-            const pdfDoc = await PDFLib.PDFDocument.create();
-            const pdf1 = await PDFLib.PDFDocument.load(arrayBuffer1);
-            const pdf2 = await PDFLib.PDFDocument.load(arrayBuffer2);
+        async function processMerge() {
+            const files = Dropzone.forElement("#dropzone").getAcceptedFiles();
+            const { PDFDocument } = PDFLib;
+            const mergedPdf = await PDFDocument.create();
 
-            const pages1 = await pdfDoc.copyPages(pdf1, pdf1.getPageIndices());
-            pages1.forEach(p => pdfDoc.addPage(p));
-            
-            const pages2 = await pdfDoc.copyPages(pdf2, pdf2.getPageIndices());
-            pages2.forEach(p => pdfDoc.addPage(p));
+            for (const file of files) {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await PDFDocument.load(arrayBuffer);
+                const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                copiedPages.forEach(page => mergedPdf.addPage(page));
+            }
 
-            const pdfBytes = await pdfDoc.save();
+            const pdfBytes = await mergedPdf.save();
             const blob = new Blob([pdfBytes], { type: 'application/pdf' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = 'merged.pdf';
+            link.download = 'merged_atlantino.pdf';
             link.click();
         }
     </script>
