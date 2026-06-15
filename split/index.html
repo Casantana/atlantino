@@ -64,13 +64,13 @@
         </div>
 
         <div id="panel-range">
-            <input type="radio" name="rangeType" id="radio-custom" value="custom" checked onchange="clearSelection()"> 
+            <input type="radio" name="rangeType" id="radio-custom" value="custom" checked onchange="resetRangeInputs()"> 
             <label for="radio-custom" style="font-weight:700;">Custom Ranges</label><br>
-            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" onfocus="document.getElementById('radio-custom').checked=true;" oninput="applyCustomRanges()">
+            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" onfocus="document.getElementById('radio-custom').checked=true; updateUI();" oninput="applyCustomRanges()">
             <br>
-            <input type="radio" name="rangeType" id="radio-fixed" value="fixed" onchange="clearSelection()"> 
+            <input type="radio" name="rangeType" id="radio-fixed" value="fixed" onchange="resetRangeInputs()"> 
             <label for="radio-fixed" style="font-weight:700;">Fixed Ranges: </label>
-            <input type="number" id="fixed-pages" value="1" style="width:60px; padding:5px;" onfocus="document.getElementById('radio-fixed').checked=true; clearSelection();" oninput="updateUI()">
+            <input type="number" id="fixed-pages" value="1" style="width:60px; padding:5px;" onfocus="document.getElementById('radio-fixed').checked=true; updateUI();" oninput="updateUI()">
         </div>
 
         <div id="panel-pages" style="display:none;">
@@ -97,6 +97,13 @@
     const selectedPages = new Set();
     let currentMode = 'range';
     let isAllSelected = false;
+
+    // Nueva función para resetear inputs al cambiar entre Custom/Fixed
+    function resetRangeInputs() {
+        document.getElementById('custom-range').value = "";
+        document.getElementById('fixed-pages').value = "1";
+        clearSelection();
+    }
 
     function clearSelection() {
         selectedPages.clear();
