@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Tools - Atlantino Tools</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --pdf-red: #d63031;
+            --word-blue: #0984e3;
+            --img-green: #00b894;
+            --bg-gray: #f9f9f9;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-gray); margin: 0; padding: 20px; }
+        .hero { text-align: center; margin-bottom: 50px; }
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 25px; 
+            max-width: 1100px; 
+            margin: 0 auto; 
+        }
+        .card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 15px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05); 
+            text-decoration: none; 
+            color: #333;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .card:hover { transform: translateY(-10px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .icon-box { font-size: 2.5rem; margin-bottom: 15px; padding: 15px; border-radius: 12px; }
+        .card h3 { margin: 10px 0; }
+        
+        /* Color themes */
+        .pdf-color { color: var(--pdf-red); background: #ffeaea; }
+        .word-color { color: var(--word-blue); background: #eaf4ff; }
+        .img-color { color: var(--img-green); background: #eafffb; }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <h1>All the PDF tools you need in one place</h1>
+    <p>The fastest, safest, and most private way to work with your files.</p>
+</div>
+
+<div class="grid">
+    <a href="/merge" class="card">
+        <div class="icon-box pdf-color"><i class="fas fa-object-group"></i></div>
+        <h3>Merge PDF</h3>
+        <p>Combine multiple documents into a single PDF file.</p>
+    </a>
+
+    <a href="/split" class="card">
+        <div class="icon-box pdf-color"><i class="fas fa-cut"></i></div>
+        <h3>Split PDF</h3>
+        <p>Extract pages or separate your document into independent files.</p>
+    </a>
+
+    <a href="/compress" class="card">
+        <div class="icon-box pdf-color"><i class="fas fa-compress-arrows-alt"></i></div>
+        <h3>Compress PDF</h3>
+        <p>Reduce file size without compromising visual quality.</p>
+    </a>
+
+    <a href="/word-to-pdf" class="card">
+        <div class="icon-box word-color"><i class="fas fa-file-word"></i></div>
+        <h3>Word to PDF</h3>
+        <p>Convert your Word documents to PDF format easily.</p>
+    </a>
+
+    <a href="/jpg-to-pdf" class="card">
+        <div class="icon-box img-color"><i class="fas fa-file-image"></i></div>
+        <h3>JPG to PDF</h3>
+        <p>Transform your images into PDF documents in seconds.</p>
+    </a>
+
+    <a href="/rotate" class="card">
+        <div class="icon-box pdf-color"><i class="fas fa-sync-alt"></i></div>
+        <h3>Rotate PDF</h3>
+        <p>Rotate your PDF pages clockwise or counter-clockwise.</p>
+    </a>
+</div>
+
+</body>
+</html>
