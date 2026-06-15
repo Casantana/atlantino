@@ -66,7 +66,7 @@
         <div id="panel-range">
             <input type="radio" name="rangeType" id="radio-custom" value="custom" checked onchange="clearSelection()"> 
             <label for="radio-custom" style="font-weight:700;">Custom Ranges</label><br>
-            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" onfocus="document.getElementById('radio-custom').checked=true; clearSelection();" oninput="applyCustomRanges()">
+            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" onfocus="document.getElementById('radio-custom').checked=true;" oninput="applyCustomRanges()">
             <br>
             <input type="radio" name="rangeType" id="radio-fixed" value="fixed" onchange="clearSelection()"> 
             <label for="radio-fixed" style="font-weight:700;">Fixed Ranges: </label>
@@ -105,6 +105,7 @@
         isAllSelected = false;
         document.querySelectorAll('.thumb-wrapper').forEach(el => el.classList.remove('selected'));
         document.getElementById('pages-to-extract-input').value = "";
+        // No limpiamos el custom-range aquí para permitir cambiar modos sin borrar el texto
         updateUI();
     }
 
@@ -141,11 +142,12 @@
         
         if (input.trim() !== "") {
             input.split(',').forEach(r => {
-                if (r.includes('-')) {
-                    const [s, e] = r.split('-').map(Number);
-                    for (let i = s; i <= e; i++) selectedPages.add(i);
-                } else {
-                    selectedPages.add(Number(r));
+                const range = r.trim();
+                if (range.includes('-')) {
+                    const [s, e] = range.split('-').map(Number);
+                    for (let i = s; i <= e; i++) if(i <= totalDocumentPages) selectedPages.add(i);
+                } else if (!isNaN(range) && range !== "") {
+                    selectedPages.add(Number(range));
                 }
             });
         }
