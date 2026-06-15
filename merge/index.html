@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Merge PDF - Atlantino Tools</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body>
+    <h1>Merge PDF</h1>
+    <input type="file" id="file1" accept="application/pdf">
+    <input type="file" id="file2" accept="application/pdf">
+    <button onclick="merge()">Merge Files</button>
+
+    <script>
+        async function merge() {
+            const file1 = document.getElementById('file1').files[0];
+            const file2 = document.getElementById('file2').files[0];
+            
+            const arrayBuffer1 = await file1.arrayBuffer();
+            const arrayBuffer2 = await file2.arrayBuffer();
+
+            const pdfDoc = await PDFLib.PDFDocument.create();
+            const pdf1 = await PDFLib.PDFDocument.load(arrayBuffer1);
+            const pdf2 = await PDFLib.PDFDocument.load(arrayBuffer2);
+
+            const pages1 = await pdfDoc.copyPages(pdf1, pdf1.getPageIndices());
+            pages1.forEach(p => pdfDoc.addPage(p));
+            
+            const pages2 = await pdfDoc.copyPages(pdf2, pdf2.getPageIndices());
+            pages2.forEach(p => pdfDoc.addPage(p));
+
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'merged.pdf';
+            link.click();
+        }
+    </script>
+</body>
+</html>
