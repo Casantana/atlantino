@@ -148,6 +148,22 @@
         updateUI();
     }
 
+    function toggleExtractAll() {
+        isAllSelected = !isAllSelected;
+        selectedPages.clear();
+        const wrappers = document.querySelectorAll('.thumb-wrapper');
+        wrappers.forEach((el, idx) => {
+            if (isAllSelected) {
+                selectedPages.add(idx + 1);
+                el.classList.add('selected');
+            } else {
+                el.classList.remove('selected');
+            }
+        });
+        document.getElementById('pages-to-extract-input').value = isAllSelected ? "All pages selected" : "";
+        updateUI();
+    }
+
     function updateUI() {
         let count = 0;
         if (document.getElementById('merge-extracted').checked) { count = 1; }
@@ -167,6 +183,7 @@
         const pdf = await pdfjsLib.getDocument(loadedPdfBytes).promise;
         totalDocumentPages = pdf.numPages;
         const previewArea = document.getElementById('preview-area');
+        previewArea.innerHTML = '';
         for (let i = 1; i <= totalDocumentPages; i++) {
             const wrapper = document.createElement('div');
             wrapper.className = 'thumb-wrapper';
@@ -180,6 +197,7 @@
                 if (currentMode === 'pages') {
                     if (selectedPages.has(i)) selectedPages.delete(i); else selectedPages.add(i);
                     wrapper.classList.toggle('selected');
+                    document.getElementById('pages-to-extract-input').value = Array.from(selectedPages).sort((a,b)=>a-b).join(', ');
                     updateUI();
                 }
             };
@@ -193,46 +211,51 @@
         const merge = document.getElementById('merge-extracted').checked;
         const zip = new JSZip();
 
+        // Determinar qué páginas incluir
+        let groups = [];
         if (merge) {
-            const newPdf = await PDFLib.PDFDocument.create();
-            let pages = [];
-            if (currentMode === 'pages' || (currentMode === 'range' && document.getElementById('radio-custom').checked)) { pages = Array.from(selectedPages).sort((a,b)=>a-b); }
-            else { pages = Array.from({length: totalDocumentPages}, (_, i) => i + 1); }
-            
-            for (let i of pages) {
-                const [copiedPage] = await newPdf.copyPages(pdfDoc, [i - 1]);
-                newPdf.addPage(copiedPage);
-            }
-            downloadBlob(new Blob([await newPdf.save()], {type: "application/pdf"}), "split_result.pdf");
+            let p = [];
+            if (currentMode === 'pages') p = Array.from(selectedPages).sort((a,b)=>a-b);
+            else if (currentMode === 'range' && document.getElementById('radio-custom').checked) p = Array.from(selectedPages).sort((a,b)=>a-b);
+            else p = Array.from({length: totalDocumentPages}, (_, i) => i + 1);
+            groups = [p];
         } else {
-            // Lógica de separación en múltiples archivos
-            let groups = [];
-            if (currentMode === 'pages') { groups = Array.from(selectedPages).sort((a,b)=>a-b).map(p => [p]); }
+            if (currentMode === 'pages') groups = Array.from(selectedPages).sort((a,b)=>a-b).map(p => [p]);
             else if (currentMode === 'range' && document.getElementById('radio-custom').checked) {
                 document.getElementById('custom-range').value.split(',').forEach(r => {
                     let rangePages = [];
                     const [s, e] = r.split('-').map(Number);
-                    for(let i=(s||0); i<=(e||s); i++) rangePages.push(i);
-                    groups.push(rangePages);
+                    for(let i=(s||0); i<=(e||s); i++) if(i <= totalDocumentPages) rangePages.push(i);
+                    if(rangePages.length > 0) groups.push(rangePages);
                 });
             } else {
                 const step = parseInt(document.getElementById('fixed-pages').value) || 1;
                 for (let i = 1; i <= totalDocumentPages; i += step) {
-                    let pageGroup = [];
-                    for(let j=0; j<step && (i+j) <= totalDocumentPages; j++) pageGroup.push(i+j);
-                    groups.push(pageGroup);
+                    let g = [];
+                    for(let j=0; j<step && (i+j) <= totalDocumentPages; j++) g.push(i+j);
+                    groups.push(g);
                 }
             }
+        }
 
+        // Crear los archivos
+        if (merge && groups.length > 0) {
+            const newPdf = await PDFLib.PDFDocument.create();
+            for (let p of groups[0]) {
+                const [copied] = await newPdf.copyPages(pdfDoc, [p - 1]);
+                newPdf.addPage(copied);
+            }
+            downloadBlob(new Blob([await newPdf.save()], {type: "application/pdf"}), "merged_output.pdf");
+        } else {
             for (let i = 0; i < groups.length; i++) {
                 const newPdf = await PDFLib.PDFDocument.create();
                 for(let p of groups[i]) {
-                    const [copiedPage] = await newPdf.copyPages(pdfDoc, [p - 1]);
-                    newPdf.addPage(copiedPage);
+                    const [copied] = await newPdf.copyPages(pdfDoc, [p - 1]);
+                    newPdf.addPage(copied);
                 }
                 zip.file(`part_${i+1}.pdf`, await newPdf.save());
             }
-            downloadBlob(await zip.generateAsync({type: "blob"}), "split_pdfs.zip");
+            downloadBlob(await zip.generateAsync({type: "blob"}), "split_files.zip");
         }
     }
 
@@ -240,6 +263,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = name; a.click();
+        URL.revokeObjectURL(url);
     }
 </script>
 </body>
