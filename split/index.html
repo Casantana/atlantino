@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Split PDF Pro - Atlantino Tools</title>
+    <script>
+        if (!window.FileReader || !window.Blob || !window.Promise) {
+            alert("Your browser is outdated. Please update it to use Atlantino Tools.");
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -13,15 +18,15 @@
         .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
         .nav-links a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 20px; }
         
-        .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; }
-        .split-panel { background: white; padding: 30px; border-radius: 12px; width: 400px; border: 1px solid #e2e8f0; }
-        .tab-btn { padding: 10px 20px; cursor: pointer; border: 1px solid #ddd; background: #f9f9f9; }
+        .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
+        .split-panel { background: white; padding: 30px; border-radius: 12px; width: 400px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .tab-btn { padding: 10px 20px; cursor: pointer; border: 1px solid #ddd; background: #f9f9f9; flex: 1; text-align: center; }
         .tab-btn.active { background: #d63031; color: white; border-color: #d63031; }
         
         .preview-container { flex: 1; display: flex; flex-wrap: wrap; gap: 15px; }
-        .thumb-wrapper { position: relative; width: 160px; height: 200px; border: 2px solid #ddd; cursor: pointer; overflow: hidden; }
+        .thumb-wrapper { position: relative; width: 160px; height: 200px; border: 2px solid #ddd; cursor: pointer; overflow: hidden; background: white; }
         .thumb-wrapper.selected { border-color: #27ae60; background: #eafaf1; }
-        .checkmark { display: none; position: absolute; top: 5px; right: 5px; background: #27ae60; color: white; width: 24px; height: 24px; border-radius: 50%; align-items: center; justify-content: center; }
+        .checkmark { display: none; position: absolute; top: 5px; right: 5px; background: #27ae60; color: white; width: 24px; height: 24px; border-radius: 50%; align-items: center; justify-content: center; font-weight: bold; }
         .thumb-wrapper.selected .checkmark { display: flex; }
         
         .btn-main { background: #d63031; color: white; padding: 12px 30px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 20px; }
@@ -54,25 +59,25 @@
         </div>
 
         <div id="panel-range">
-            <input type="radio" name="rangeType" value="custom" checked> Custom Ranges<br>
-            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8" style="width:90%; margin:10px 0;">
+            <input type="radio" name="rangeType" value="custom" checked onchange="updateUI()"> Custom Ranges<br>
+            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:90%; margin:10px 0;" oninput="updateUI()">
             <br>
-            <input type="radio" name="rangeType" value="fixed"> Fixed Ranges: 
-            <input type="number" id="fixed-pages" value="1" style="width:50px;">
+            <input type="radio" name="rangeType" value="fixed" onchange="updateUI()"> Fixed Ranges: 
+            <input type="number" id="fixed-pages" value="1" style="width:50px;" oninput="updateUI()">
         </div>
 
         <div id="panel-pages" style="display:none;">
-            <button onclick="extractAll()">Extract All Pages</button>
+            <button onclick="extractAll()" style="width:100%; margin-bottom:10px;">Extract All Pages</button>
             <p>Pages to extract:</p>
-            <input type="text" id="pages-to-extract-input" style="width:90%; padding:8px;">
+            <input type="text" id="pages-to-extract-input" style="width:90%; padding:8px;" readonly>
         </div>
 
         <div style="margin-top:20px;">
-            <input type="checkbox" id="merge-extracted"> 
+            <input type="checkbox" id="merge-extracted" onchange="updateUI()"> 
             <label for="merge-extracted">Merge extracted pages into one PDF</label>
         </div>
         
-        <div id="file-count-info">Resulting files: 0</div>
+        <div id="file-count-info">Resulting files: Calculating...</div>
         <button class="btn-main" onclick="executeSplit()">SPLIT PDF</button>
     </div>
 </div>
@@ -80,11 +85,13 @@
 <input type="file" id="file-input" accept="application/pdf" style="display:none;">
 
 <script>
+    /* VARIABLES GLOBALES Y ESTADO DE APLICACIÓN */
     let loadedPdfBytes = null;
     let totalDocumentPages = 0;
     const selectedPages = new Set();
     let currentMode = 'range';
 
+    /* GESTIÓN DE MODOS (RANGE VS PAGES) */
     function switchMode(mode) {
         currentMode = mode;
         document.getElementById('tab-range').className = mode === 'range' ? 'tab-btn active' : 'tab-btn';
@@ -94,10 +101,12 @@
         updateUI();
     }
 
+    /* CARGA E INICIALIZACIÓN */
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         loadedPdfBytes = await file.arrayBuffer();
+        
         document.getElementById('screen-start').style.display = 'none';
         document.getElementById('screen-work').style.display = 'flex';
         
@@ -105,6 +114,8 @@
         totalDocumentPages = pdf.numPages;
         
         const previewArea = document.getElementById('preview-area');
+        previewArea.innerHTML = '';
+        
         for (let i = 1; i <= Math.min(totalDocumentPages, 24); i++) {
             const wrapper = document.createElement('div');
             wrapper.className = 'thumb-wrapper';
@@ -127,21 +138,40 @@
         updateUI();
     });
 
+    /* LÓGICA DE ACTUALIZACIÓN DE UI */
+    function updateUI() {
+        const merge = document.getElementById('merge-extracted').checked;
+        let count = "Calculando...";
+        
+        if (merge) {
+            count = 1;
+        } else if (currentMode === 'range') {
+            const rangeType = document.querySelector('input[name="rangeType"]:checked').value;
+            count = rangeType === 'fixed' ? Math.ceil(totalDocumentPages / (document.getElementById('fixed-pages').value || 1)) : "Variable";
+        } else {
+            count = selectedPages.size || "Select pages";
+        }
+        document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
+    }
+
     function extractAll() {
         selectedPages.clear();
         for(let i=1; i<=totalDocumentPages; i++) selectedPages.add(i);
         document.querySelectorAll('.thumb-wrapper').forEach(el => el.classList.add('selected'));
+        document.getElementById('pages-to-extract-input').value = "All pages selected";
         updateUI();
     }
 
-    function updateUI() {
-        const merge = document.getElementById('merge-extracted').checked;
-        let count = merge ? 1 : (currentMode === 'range' ? "Calculando..." : selectedPages.size);
-        document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
-    }
-
+    /* PROCESAMIENTO FINAL */
     async function executeSplit() {
-        alert("Processing: " + (document.getElementById('merge-extracted').checked ? "Merging into one PDF" : "Splitting into individual files"));
+        try {
+            const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes);
+            // Aquí se integra la librería JSZip para empaquetado final
+            alert(`Split logic initialized. Ready to process ${totalDocumentPages} pages.`);
+        } catch (e) {
+            console.error(e);
+            alert("Error: " + e.message);
+        }
     }
 </script>
 </body>
