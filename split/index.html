@@ -64,13 +64,13 @@
         </div>
 
         <div id="panel-range">
-            <input type="radio" name="rangeType" id="radio-custom" value="custom" checked> 
-            <label for="radio-custom">Custom Ranges</label><br>
-            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" oninput="document.getElementById('radio-custom').checked=true; updateUI();">
+            <input type="radio" name="rangeType" id="radio-custom" value="custom" checked onchange="clearSelection()"> 
+            <label for="radio-custom" style="font-weight:700;">Custom Ranges</label><br>
+            <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" onfocus="document.getElementById('radio-custom').checked=true; clearSelection();" oninput="applyCustomRanges()">
             <br>
-            <input type="radio" name="rangeType" id="radio-fixed" value="fixed"> 
-            <label for="radio-fixed">Fixed Ranges: </label>
-            <input type="number" id="fixed-pages" value="1" style="width:60px; padding:5px;" oninput="document.getElementById('radio-fixed').checked=true; updateUI();">
+            <input type="radio" name="rangeType" id="radio-fixed" value="fixed" onchange="clearSelection()"> 
+            <label for="radio-fixed" style="font-weight:700;">Fixed Ranges: </label>
+            <input type="number" id="fixed-pages" value="1" style="width:60px; padding:5px;" onfocus="document.getElementById('radio-fixed').checked=true; clearSelection();" oninput="updateUI()">
         </div>
 
         <div id="panel-pages" style="display:none;">
@@ -92,18 +92,19 @@
 <input type="file" id="file-input" accept="application/pdf" style="display:none;">
 
 <script>
+    /* VARIABLES GLOBALES Y ESTADO */
     let loadedPdfBytes = null;
     let totalDocumentPages = 0;
     const selectedPages = new Set();
     let currentMode = 'range';
     let isAllSelected = false;
 
+    /* FUNCION PARA LIMPIAR TODO EL ESTADO */
     function clearSelection() {
         selectedPages.clear();
         isAllSelected = false;
         document.querySelectorAll('.thumb-wrapper').forEach(el => el.classList.remove('selected'));
         document.getElementById('pages-to-extract-input').value = "";
-        document.getElementById('custom-range').value = "";
         updateUI();
     }
 
@@ -133,6 +134,30 @@
         updateUI();
     }
 
+    function applyCustomRanges() {
+        const input = document.getElementById('custom-range').value;
+        const wrappers = document.querySelectorAll('.thumb-wrapper');
+        selectedPages.clear();
+        
+        if (input.trim() !== "") {
+            input.split(',').forEach(r => {
+                if (r.includes('-')) {
+                    const [s, e] = r.split('-').map(Number);
+                    for (let i = s; i <= e; i++) selectedPages.add(i);
+                } else {
+                    selectedPages.add(Number(r));
+                }
+            });
+        }
+        
+        wrappers.forEach((el, idx) => {
+            if (selectedPages.has(idx + 1)) el.classList.add('selected');
+            else el.classList.remove('selected');
+        });
+        updateUI();
+    }
+
+    /* LÓGICA DE CÁLCULO DE ARCHIVOS RESULTANTES */
     function updateUI() {
         if (document.getElementById('merge-extracted').checked) {
             document.getElementById('file-count-info').innerText = "Resulting files: 1";
@@ -154,15 +179,20 @@
         document.getElementById('file-count-info').innerText = `Resulting files: ${count}`;
     }
 
+    /* CARGA DE PDF */
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         loadedPdfBytes = await file.arrayBuffer();
         document.getElementById('screen-start').style.display = 'none';
         document.getElementById('screen-work').style.display = 'flex';
+        
         const pdf = await pdfjsLib.getDocument(loadedPdfBytes).promise;
         totalDocumentPages = pdf.numPages;
+        
         const previewArea = document.getElementById('preview-area');
+        previewArea.innerHTML = '';
+        
         for (let i = 1; i <= totalDocumentPages; i++) {
             const wrapper = document.createElement('div');
             wrapper.className = 'thumb-wrapper';
@@ -172,6 +202,7 @@
             const vp = page.getViewport({ scale: 0.25 });
             canvas.height = vp.height; canvas.width = vp.width;
             await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+            
             wrapper.onclick = () => {
                 if (currentMode === 'pages') {
                     if (selectedPages.has(i)) selectedPages.delete(i);
@@ -187,7 +218,7 @@
     });
 
     async function executeSplit() {
-        alert("Processing: " + (document.getElementById('file-count-info').innerText));
+        alert("Processing: " + document.getElementById('file-count-info').innerText);
     }
 </script>
 </body>
