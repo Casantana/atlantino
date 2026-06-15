@@ -64,10 +64,10 @@
         </div>
 
         <div id="panel-range">
-            <input type="radio" name="rangeType" value="custom" checked onchange="updateUI()"> Custom Ranges<br>
+            <input type="radio" name="rangeType" value="custom" checked onchange="handleRangeTypeChange()"> Custom Ranges<br>
             <input type="text" id="custom-range" placeholder="e.g. 1-5, 8, 10" style="width:94%; margin:15px 0; padding:10px;" oninput="applyCustomRanges()">
             <br>
-            <input type="radio" name="rangeType" value="fixed" onchange="updateUI()"> Fixed Ranges: 
+            <input type="radio" name="rangeType" value="fixed" onchange="handleRangeTypeChange()"> Fixed Ranges: 
             <input type="number" id="fixed-pages" value="1" style="width:60px; padding:5px;" oninput="updateUI()">
         </div>
 
@@ -96,6 +96,7 @@
     let currentMode = 'range';
     let isAllSelected = false;
 
+    // Reseteo profundo de selección
     function clearSelection() {
         selectedPages.clear();
         isAllSelected = false;
@@ -114,11 +115,15 @@
         document.getElementById('panel-pages').style.display = mode === 'pages' ? 'block' : 'none';
     }
 
+    function handleRangeTypeChange() {
+        clearSelection();
+        updateUI();
+    }
+
     function toggleExtractAll() {
         isAllSelected = !isAllSelected;
         selectedPages.clear();
         const wrappers = document.querySelectorAll('.thumb-wrapper');
-        
         wrappers.forEach((el, idx) => {
             if (isAllSelected) {
                 selectedPages.add(idx + 1);
@@ -135,7 +140,6 @@
         const input = document.getElementById('custom-range').value;
         const wrappers = document.querySelectorAll('.thumb-wrapper');
         selectedPages.clear();
-        
         if (input.trim() === "") {
             wrappers.forEach(el => el.classList.remove('selected'));
         } else {
@@ -161,10 +165,8 @@
         loadedPdfBytes = await file.arrayBuffer();
         document.getElementById('screen-start').style.display = 'none';
         document.getElementById('screen-work').style.display = 'flex';
-        
         const pdf = await pdfjsLib.getDocument(loadedPdfBytes).promise;
         totalDocumentPages = pdf.numPages;
-        
         const previewArea = document.getElementById('preview-area');
         for (let i = 1; i <= totalDocumentPages; i++) {
             const wrapper = document.createElement('div');
@@ -175,17 +177,17 @@
             const vp = page.getViewport({ scale: 0.25 });
             canvas.height = vp.height; canvas.width = vp.width;
             await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-            
             wrapper.onclick = () => {
-                if (selectedPages.has(i)) selectedPages.delete(i);
-                else selectedPages.add(i);
-                wrapper.classList.toggle('selected');
-                document.getElementById('pages-to-extract-input').value = Array.from(selectedPages).sort((a,b)=>a-b).join(', ');
-                updateUI();
+                if (currentMode === 'pages') {
+                    if (selectedPages.has(i)) selectedPages.delete(i);
+                    else selectedPages.add(i);
+                    wrapper.classList.toggle('selected');
+                    document.getElementById('pages-to-extract-input').value = Array.from(selectedPages).sort((a,b)=>a-b).join(', ');
+                    updateUI();
+                }
             };
             previewArea.appendChild(wrapper);
         }
-        updateUI();
     });
 
     function updateUI() {
