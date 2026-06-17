@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Watermark PDF - Atlantino Tools</title>
+    <script>
+        if (!window.FileReader || !window.Blob || !window.Promise) {
+            alert("Your browser is outdated. Please update it to use Atlantino Tools.");
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; }
+        header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
+        .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
+
+        /* ===== NAV ===== */
+        .nav-links { display: flex; align-items: center; }
+        .nav-links > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
+        .nav-links > a:hover { color: #d63031; }
+
+        /* ===== DROPDOWN ===== */
+        .nav-item { position: relative; margin-right: 15px; }
+        .nav-item > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; padding: 8px 0; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+        .nav-item:hover > a, .nav-item.open > a { color: #d63031; }
+        .nav-item .caret { font-size: 0.6rem; transition: transform 0.2s; }
+        .nav-item:hover .caret, .nav-item.open .caret { transform: rotate(180deg); }
+        .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); min-width: 200px; padding: 8px 0; z-index: 100; }
+        .nav-item:hover .dropdown-menu, .nav-item.open .dropdown-menu { display: block; }
+        .dropdown-menu a { display: flex; align-items: center; gap: 11px; padding: 10px 18px; color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap; margin-right: 0 !important; }
+        .dropdown-menu a:hover { background: #f4f7f9; color: #d63031; }
+
+        /* ===== OFFICE ICONS ===== */
+        .app-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; overflow: hidden; font-family: 'Arial Black', Arial, sans-serif; font-weight: 900; }
+        .icon-letter { font-size: 15px; color: white; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); position: relative; z-index: 2; }
+        .icon-badge { position: absolute; top: -1px; left: -1px; background: rgba(255,255,255,0.18); width: 13px; height: 13px; border-radius: 0 0 4px 0; }
+        .icon-word  { background: linear-gradient(135deg, #1e6fbb 0%, #185ABD 100%); }
+        .icon-jpg   { background: linear-gradient(135deg, #f0b429 0%, #d9961f 100%); }
+        .icon-excel { background: linear-gradient(135deg, #1a9e52 0%, #107C41 100%); }
+        .icon-pptx  { background: linear-gradient(135deg, #e8623a 0%, #D24726 100%); }
+        .icon-html  { background: linear-gradient(135deg, #e44d26 0%, #c0390f 100%); }
+        .icon-jpg-img { position: relative; overflow: hidden; }
+        .icon-jpg-img .sky   { position: absolute; top: 0; left: 0; right: 0; bottom: 40%; background: rgba(255,255,255,0.22); }
+        .icon-jpg-img .sun   { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.9); }
+        .icon-jpg-img .hills { position: absolute; bottom: 0; left: 0; right: 0; height: 14px; background: rgba(255,255,255,0.18); clip-path: polygon(0 100%, 30% 20%, 55% 70%, 75% 30%, 100% 60%, 100% 100%); }
+        .icon-with-badge { position: relative; }
+        .icon-with-badge .pdf-badge { position: absolute; bottom: -3px; right: -3px; background: #C0392B; color: white; font-size: 5.5px; font-family: Arial, sans-serif; font-weight: 900; padding: 1.5px 2.5px; border-radius: 2px; line-height: 1; letter-spacing: 0.2px; border: 1.5px solid #f4f7f9; }
+        .dropdown-sep { height: 1px; background: #e2e8f0; margin: 6px 0; }
+        .dropdown-label { padding: 6px 18px 2px; font-size: 0.7rem; font-weight: 700; color: #a0aec0; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ===== LAYOUT ===== */
+        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 20px; border: 1px dashed #cbd5e0; box-sizing: border-box; }
+        .screen { display: none; min-height: calc(100vh - 200px); align-items: center; justify-content: flex-start; flex-direction: column; }
+        #screen-start { display: flex; padding-top: 60px; }
+        .btn-main { background: #d63031; color: white; padding: 18px 40px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(214,48,49,0.3); transition: 0.2s; }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+        .back-link { margin-top: 15px; color: #718096; text-decoration: none; font-size: 0.9rem; }
+
+        #screen-work { display: none; padding: 20px 40px; width: 100%; box-sizing: border-box; gap: 30px; flex-direction: row; height: auto; max-width: 1200px; margin: 0 auto; }
+
+        /* Pages grid */
+        .left-panel { flex: 3; background: white; padding: 30px; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 20px; min-height: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); align-content: flex-start; }
+        .page-card { width: 140px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .page-thumb { width: 130px; height: 170px; border: 2px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.08); position: relative; }
+        .page-thumb canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
+        /* Watermark overlay preview on each thumb */
+        .wm-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; overflow: hidden; }
+        .wm-overlay span { font-weight: 700; white-space: nowrap; transform-origin: center; }
+        .page-label { font-size: 0.78rem; color: #636e72; font-weight: 600; }
+
+        /* Right panel */
+        .right-panel { flex: 1; min-width: 280px; background: white; padding: 28px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; align-self: flex-start; }
+        .right-panel h2 { margin-top: 0; color: #2d3436; font-size: 1.4rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 18px; }
+
+        /* Form fields */
+        .field { margin-bottom: 16px; }
+        .field label { display: block; font-size: 0.78rem; font-weight: 700; color: #636e72; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .field input[type="text"],
+        .field input[type="number"],
+        .field select { width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 0.95rem; box-sizing: border-box; color: #2d3436; background: #fafafa; }
+        .field input[type="text"]:focus,
+        .field input[type="number"]:focus,
+        .field select:focus { outline: none; border-color: #d63031; background: #fff; }
+        .field input[type="range"] { width: 100%; accent-color: #d63031; }
+        .range-row { display: flex; align-items: center; gap: 10px; }
+        .range-val { font-weight: 700; color: #d63031; font-size: 0.95rem; min-width: 36px; text-align: right; }
+
+        /* Color swatches */
+        .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+        .swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: 0.15s; }
+        .swatch.active, .swatch:hover { border-color: #2d3436; transform: scale(1.15); }
+        .field input[type="color"] { width: 36px; height: 28px; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; padding: 2px; background: #fafafa; }
+
+        /* Position grid */
+        .position-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 4px; }
+        .pos-btn { padding: 7px 4px; border: 1.5px solid #e2e8f0; border-radius: 6px; background: #fafafa; cursor: pointer; font-size: 0.75rem; font-weight: 600; color: #636e72; text-align: center; transition: 0.15s; }
+        .pos-btn:hover { border-color: #d63031; color: #d63031; }
+        .pos-btn.active { border-color: #d63031; background: #fff5f5; color: #d63031; }
+
+        #progress-text { text-align: center; color: #636e72; font-weight: 600; margin-top: 12px; min-height: 1.2em; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<noscript>
+    <div style="text-align:center; padding:50px; background:#f00; color:white;">Please enable JavaScript to use this tool.</div>
+</noscript>
+
+<header>
+    <a href="https://tools.atlantino.ca" class="logo">Atlantino Tools</a>
+    <nav class="nav-links">
+        <a href="/merge">MERGE PDF</a>
+        <a href="/split">SPLIT PDF</a>
+        <a href="/compress">COMPRESS PDF</a>
+
+        <div class="nav-item" id="convert-dropdown">
+            <a href="javascript:void(0)">CONVERT PDF <span class="caret">&#9660;</span></a>
+            <div class="dropdown-menu">
+                <div class="dropdown-label">Convert to PDF</div>
+                <a href="/convert/word-to-pdf">
+                    <div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div>
+                    WORD TO PDF
+                </a>
+                <a href="/convert/jpg-to-pdf">
+                    <div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div>
+                    JPG TO PDF
+                </a>
+                <a href="/convert/excel-to-pdf">
+                    <div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div>
+                    EXCEL TO PDF
+                </a>
+                <a href="/convert/powerpoint-to-pdf">
+                    <div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div>
+                    POWERPOINT TO PDF
+                </a>
+                <a href="/convert/html-to-pdf">
+                    <div class="app-icon icon-html"><div class="icon-badge"></div><span class="icon-letter">&lt;/&gt;</span></div>
+                    HTML TO PDF
+                </a>
+                <div class="dropdown-sep"></div>
+                <div class="dropdown-label">Convert from PDF</div>
+                <a href="/convert/pdf-to-word">
+                    <div class="icon-with-badge"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div><div class="pdf-badge">PDF</div></div>
+                    PDF TO WORD
+                </a>
+                <a href="/convert/pdf-to-jpg">
+                    <div class="icon-with-badge"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div><div class="pdf-badge">PDF</div></div>
+                    PDF TO JPG
+                </a>
+                <a href="/convert/pdf-to-excel">
+                    <div class="icon-with-badge"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div><div class="pdf-badge">PDF</div></div>
+                    PDF TO EXCEL
+                </a>
+                <a href="/convert/pdf-to-powerpoint">
+                    <div class="icon-with-badge"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div><div class="pdf-badge">PDF</div></div>
+                    PDF TO POWERPOINT
+                </a>
+            </div>
+        </div>
+
+        <a href="/rotate">ROTATE PDF</a>
+        <a href="/watermark">WATERMARK PDF</a>
+    </nav>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const item    = document.getElementById('convert-dropdown');
+        const trigger = item.querySelector(':scope > a');
+        trigger.addEventListener('click', e => { e.preventDefault(); item.classList.toggle('open'); });
+        document.addEventListener('click', e => { if (!item.contains(e.target)) item.classList.remove('open'); });
+    });
+</script>
+
+<div class="ad-space">AdSense Banner (728x90)</div>
+
+<!-- START -->
+<div id="screen-start" class="screen">
+    <h1>Watermark PDF</h1>
+    <p style="color:#636e72; margin-bottom:30px;">Add a custom text watermark to every page of your PDF.</p>
+    <button class="btn-main" onclick="document.getElementById('file-input').click()">Select PDF file</button>
+    <a href="https://tools.atlantino.ca" class="back-link" style="margin-top:15px; display:inline-block;">← Back to homepage</a>
+</div>
+
+<!-- WORK -->
+<div id="screen-work" class="screen">
+
+    <!-- Page previews -->
+    <div class="left-panel" id="pages-grid"></div>
+
+    <!-- Options panel -->
+    <div class="right-panel">
+        <h2>Watermark settings</h2>
+
+        <div class="field">
+            <label>Watermark text</label>
+            <input type="text" id="wm-text" value="CONFIDENTIAL" oninput="updatePreviews()" maxlength="60" placeholder="e.g. DRAFT, CONFIDENTIAL…">
+        </div>
+
+        <div class="field">
+            <label>Font size</label>
+            <div class="range-row">
+                <input type="range" id="wm-size" min="10" max="120" value="40" oninput="updatePreviews()">
+                <span class="range-val" id="wm-size-val">40</span>
+            </div>
+        </div>
+
+        <div class="field">
+            <label>Opacity</label>
+            <div class="range-row">
+                <input type="range" id="wm-opacity" min="5" max="100" value="30" oninput="updatePreviews()">
+                <span class="range-val" id="wm-opacity-val">30%</span>
+            </div>
+        </div>
+
+        <div class="field">
+            <label>Rotation</label>
+            <div class="range-row">
+                <input type="range" id="wm-angle" min="-90" max="90" value="-45" oninput="updatePreviews()">
+                <span class="range-val" id="wm-angle-val">-45°</span>
+            </div>
+        </div>
+
+        <div class="field">
+            <label>Color</label>
+            <div class="color-swatches" id="color-swatches">
+                <div class="swatch active" data-color="#c0392b" style="background:#c0392b;" onclick="pickSwatch(this)"></div>
+                <div class="swatch" data-color="#2d3436" style="background:#2d3436;" onclick="pickSwatch(this)"></div>
+                <div class="swatch" data-color="#0984e3" style="background:#0984e3;" onclick="pickSwatch(this)"></div>
+                <div class="swatch" data-color="#6c5ce7" style="background:#6c5ce7;" onclick="pickSwatch(this)"></div>
+                <div class="swatch" data-color="#00b894" style="background:#00b894;" onclick="pickSwatch(this)"></div>
+                <div class="swatch" data-color="#fdcb6e" style="background:#fdcb6e;" onclick="pickSwatch(this)"></div>
+                <input type="color" id="wm-color-custom" value="#c0392b" title="Custom color" oninput="pickCustomColor(this)">
+            </div>
+        </div>
+
+        <div class="field">
+            <label>Position</label>
+            <div class="position-grid" id="pos-grid">
+                <button class="pos-btn" data-pos="top-left"     onclick="pickPos(this)">↖ Top Left</button>
+                <button class="pos-btn" data-pos="top-center"   onclick="pickPos(this)">↑ Top Center</button>
+                <button class="pos-btn" data-pos="top-right"    onclick="pickPos(this)">↗ Top Right</button>
+                <button class="pos-btn" data-pos="mid-left"     onclick="pickPos(this)">← Mid Left</button>
+                <button class="pos-btn active" data-pos="center" onclick="pickPos(this)">✦ Center</button>
+                <button class="pos-btn" data-pos="mid-right"    onclick="pickPos(this)">→ Mid Right</button>
+                <button class="pos-btn" data-pos="bot-left"     onclick="pickPos(this)">↙ Bot Left</button>
+                <button class="pos-btn" data-pos="bot-center"   onclick="pickPos(this)">↓ Bot Center</button>
+                <button class="pos-btn" data-pos="bot-right"    onclick="pickPos(this)">↘ Bot Right</button>
+            </div>
+        </div>
+
+        <button class="btn-main" style="width:100%; margin-top:8px;" id="btn-watermark" onclick="executeWatermark()">
+            Add Watermark
+        </button>
+        <div id="progress-text"></div>
+    </div>
+</div>
+
+<!-- DONE -->
+<div id="screen-download" class="screen">
+    <h1>Watermark added!</h1>
+    <p style="color:#636e72; margin-bottom:30px;">Your PDF has been watermarked successfully.</p>
+    <button class="btn-main" onclick="document.getElementById('file-input').click()">Watermark another PDF</button>
+    <a href="https://tools.atlantino.ca" class="back-link" style="margin-top:15px; display:inline-block;">← Back to homepage</a>
+</div>
+
+<input type="file" id="file-input" accept="application/pdf" style="display:none;">
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
+
+    let loadedPdfBytes = null;
+    let totalPages     = 0;
+    let wmColor        = '#c0392b';
+    let wmPosition     = 'center';
+
+    // ── Settings helpers ──────────────────────────────────────────────────────
+    function getSettings() {
+        return {
+            text:    document.getElementById('wm-text').value.trim() || 'WATERMARK',
+            size:    parseInt(document.getElementById('wm-size').value),
+            opacity: parseInt(document.getElementById('wm-opacity').value) / 100,
+            angle:   parseInt(document.getElementById('wm-angle').value),
+            color:   wmColor,
+            pos:     wmPosition
+        };
+    }
+
+    function pickSwatch(el) {
+        document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+        el.classList.add('active');
+        wmColor = el.dataset.color;
+        document.getElementById('wm-color-custom').value = wmColor;
+        updatePreviews();
+    }
+
+    function pickCustomColor(input) {
+        wmColor = input.value;
+        document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+        updatePreviews();
+    }
+
+    function pickPos(btn) {
+        document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        wmPosition = btn.dataset.pos;
+        updatePreviews();
+    }
+
+    // Live-update range labels
+    ['wm-size','wm-opacity','wm-angle'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => {
+            const v = document.getElementById(id).value;
+            if (id === 'wm-opacity') document.getElementById(id+'-val').innerText = v + '%';
+            else if (id === 'wm-angle') document.getElementById(id+'-val').innerText = v + '°';
+            else document.getElementById(id+'-val').innerText = v;
+        });
+    });
+
+    // ── File load ─────────────────────────────────────────────────────────────
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        loadedPdfBytes = await file.arrayBuffer();
+
+        document.getElementById('screen-start').style.display    = 'none';
+        document.getElementById('screen-download').style.display = 'none';
+        document.getElementById('screen-work').style.display     = 'flex';
+        document.getElementById('pages-grid').innerHTML          = '';
+        document.getElementById('progress-text').innerText       = '';
+
+        const previewCopy = loadedPdfBytes.slice(0);
+        const pdf = await pdfjsLib.getDocument({ data: previewCopy }).promise;
+        totalPages = pdf.numPages;
+
+        for (let i = 1; i <= totalPages; i++) {
+            const card = document.createElement('div');
+            card.className = 'page-card';
+            card.id = `card-${i}`;
+
+            const thumb = document.createElement('div');
+            thumb.className = 'page-thumb';
+
+            const canvas = document.createElement('canvas');
+            thumb.appendChild(canvas);
+
+            // Watermark overlay preview
+            const overlay = document.createElement('div');
+            overlay.className = 'wm-overlay';
+            overlay.id = `overlay-${i}`;
+            const span = document.createElement('span');
+            overlay.appendChild(span);
+            thumb.appendChild(overlay);
+
+            card.appendChild(thumb);
+
+            const label = document.createElement('div');
+            label.className = 'page-label';
+            label.innerText = `Page ${i}`;
+            card.appendChild(label);
+
+            document.getElementById('pages-grid').appendChild(card);
+
+            const page = await pdf.getPage(i);
+            const vp   = page.getViewport({ scale: 1 });
+            const scale = Math.min(126 / vp.width, 166 / vp.height);
+            const scaledVp = page.getViewport({ scale });
+            canvas.width  = scaledVp.width;
+            canvas.height = scaledVp.height;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledVp }).promise;
+        }
+
+        updatePreviews();
+    });
+
+    // ── Live watermark preview on thumbnails ──────────────────────────────────
+    function updatePreviews() {
+        if (totalPages === 0) return;
+        const s = getSettings();
+
+        for (let i = 1; i <= totalPages; i++) {
+            const overlay = document.getElementById(`overlay-${i}`);
+            if (!overlay) continue;
+            const span = overlay.querySelector('span');
+
+            // Scale font proportionally to thumb (thumb ~130px wide vs PDF ~595pt)
+            const scaledSize = Math.max(6, Math.round(s.size * 130 / 595));
+
+            span.innerText = s.text;
+            span.style.fontSize   = scaledSize + 'px';
+            span.style.color      = s.color;
+            span.style.opacity    = s.opacity;
+            span.style.transform  = `rotate(${s.angle}deg)`;
+            span.style.fontFamily = 'Inter, sans-serif';
+            span.style.fontWeight = '700';
+            span.style.letterSpacing = '1px';
+
+            // Position the overlay
+            overlay.style.alignItems  = 'center';
+            overlay.style.justifyContent = 'center';
+            const [v, h] = s.pos.split('-');
+            overlay.style.alignItems     = v === 'top' ? 'flex-start' : v === 'bot' ? 'flex-end' : 'center';
+            overlay.style.justifyContent = h === 'left' ? 'flex-start' : h === 'right' ? 'flex-end' : 'center';
+            overlay.style.padding = '8px';
+        }
+    }
+
+    // ── Apply watermark with pdf-lib and download ─────────────────────────────
+    async function executeWatermark() {
+        if (!loadedPdfBytes) return;
+        const s   = getSettings();
+        if (!s.text) { alert('Please enter a watermark text.'); return; }
+
+        const btn      = document.getElementById('btn-watermark');
+        const progress = document.getElementById('progress-text');
+        btn.disabled   = true;
+        progress.innerText = 'Adding watermark…';
+
+        try {
+            const pdfDoc = await PDFLib.PDFDocument.load(loadedPdfBytes.slice(0));
+
+            // Embed a standard font (Helvetica Bold — always available in pdf-lib)
+            const font = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+            // Parse hex color → rgb 0-1
+            const hex = s.color.replace('#','');
+            const r   = parseInt(hex.substring(0,2),16)/255;
+            const g   = parseInt(hex.substring(2,4),16)/255;
+            const b   = parseInt(hex.substring(4,6),16)/255;
+
+            const pages = pdfDoc.getPages();
+            pages.forEach(page => {
+                const { width, height } = page.getSize();
+                const textWidth  = font.widthOfTextAtSize(s.text, s.size);
+                const textHeight = s.size;
+
+                // Compute (x, y) origin based on position setting
+                const pad = 40;
+                const [v, h] = s.pos.split('-');
+                let x, y;
+
+                if (h === 'left')   x = pad;
+                else if (h === 'right') x = width - textWidth - pad;
+                else x = (width - textWidth) / 2;
+
+                if (v === 'top')    y = height - textHeight - pad;
+                else if (v === 'bot') y = pad;
+                else y = (height - textHeight) / 2;
+
+                page.drawText(s.text, {
+                    x, y,
+                    size:     s.size,
+                    font,
+                    color:    PDFLib.rgb(r, g, b),
+                    opacity:  s.opacity,
+                    rotate:   PDFLib.degrees(s.angle),
+                });
+            });
+
+            progress.innerText = 'Generating PDF…';
+            const outBytes = await pdfDoc.save();
+            const blob = new Blob([outBytes], { type: 'application/pdf' });
+            const a    = document.createElement('a');
+            a.href     = URL.createObjectURL(blob);
+            a.download = 'watermarked_output.pdf';
+            a.click();
+            URL.revokeObjectURL(a.href);
+
+            document.getElementById('screen-work').style.display     = 'none';
+            document.getElementById('screen-download').style.display = 'flex';
+
+        } catch (err) {
+            console.error(err);
+            progress.innerText = 'Error adding watermark. Please try again.';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
