@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>JPG to PDF - Atlantino Tools</title>
+    <script>
+        if (!window.FileReader || !window.Blob || !window.Promise) {
+            alert("Your browser is outdated. Please update it to use Atlantino Tools.");
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; line-height: 1.6; }
+        header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
+        .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
+
+        /* ===== NAV ===== */
+        .nav-links { display: flex; align-items: center; }
+        .nav-links > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
+        .nav-links > a:hover { color: #d63031; }
+
+        /* ===== DROPDOWN ===== */
+        .nav-item { position: relative; margin-right: 15px; }
+        .nav-item > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; padding: 8px 0; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+        .nav-item:hover > a, .nav-item.open > a { color: #d63031; }
+        .nav-item .caret { font-size: 0.6rem; transition: transform 0.2s; }
+        .nav-item:hover .caret, .nav-item.open .caret { transform: rotate(180deg); }
+        .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); min-width: 200px; padding: 8px 0; z-index: 100; }
+        .nav-item:hover .dropdown-menu, .nav-item.open .dropdown-menu { display: block; }
+        .dropdown-menu a { display: flex; align-items: center; gap: 11px; padding: 10px 18px; color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap; margin-right: 0 !important; }
+        .dropdown-menu a:hover { background: #f4f7f9; color: #d63031; }
+        .dropdown-sep { height: 1px; background: #e2e8f0; margin: 6px 0; }
+        .dropdown-label { padding: 6px 18px 2px; font-size: 0.7rem; font-weight: 700; color: #a0aec0; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ===== OFFICE ICONS ===== */
+        .app-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; overflow: hidden; font-family: 'Arial Black', Arial, sans-serif; font-weight: 900; }
+        .app-icon .icon-letter { font-size: 15px; color: white; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); position: relative; z-index: 2; }
+        .app-icon .icon-badge { position: absolute; top: -1px; left: -1px; background: rgba(255,255,255,0.18); width: 13px; height: 13px; border-radius: 0 0 4px 0; }
+        .icon-word  { background: linear-gradient(135deg, #1e6fbb 0%, #185ABD 100%); }
+        .icon-jpg   { background: linear-gradient(135deg, #f0b429 0%, #d9961f 100%); }
+        .icon-excel { background: linear-gradient(135deg, #1a9e52 0%, #107C41 100%); }
+        .icon-pptx  { background: linear-gradient(135deg, #e8623a 0%, #D24726 100%); }
+        .icon-html  { background: linear-gradient(135deg, #e44d26 0%, #c0390f 100%); }
+        .icon-jpg-img { position: relative; overflow: hidden; }
+        .icon-jpg-img .sky   { position: absolute; top: 0; left: 0; right: 0; bottom: 40%; background: rgba(255,255,255,0.22); }
+        .icon-jpg-img .sun   { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.9); }
+        .icon-jpg-img .hills { position: absolute; bottom: 0; left: 0; right: 0; height: 14px; background: rgba(255,255,255,0.18); clip-path: polygon(0 100%, 30% 20%, 55% 70%, 75% 30%, 100% 60%, 100% 100%); }
+        .icon-with-badge { position: relative; }
+        .icon-with-badge .pdf-badge { position: absolute; bottom: -3px; right: -3px; background: #C0392B; color: white; font-size: 5.5px; font-family: Arial, sans-serif; font-weight: 900; padding: 1.5px 2.5px; border-radius: 2px; line-height: 1; letter-spacing: 0.2px; border: 1.5px solid #f4f7f9; }
+
+        /* ===== LAYOUT ===== */
+        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 20px; border: 1px dashed #cbd5e0; box-sizing: border-box; }
+        .screen { display: none; min-height: calc(100vh - 200px); align-items: center; justify-content: center; flex-direction: column; }
+        #screen-start { display: flex; padding-top: 60px; align-items: center; justify-content: center; }
+
+        .btn-main { background: #d63031; color: white; padding: 18px 40px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(214,48,49,0.3); transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+        .back-link { margin-top: 15px; color: #718096; text-decoration: none; font-size: 0.9rem; display: inline-block; }
+
+        /* ===== WORK SCREEN ===== */
+        #screen-work { display: none; padding: 20px 40px; width: 100%; box-sizing: border-box; gap: 30px; flex-direction: row; height: auto; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
+
+        /* Images grid */
+        .left-panel { flex: 3; background: white; padding: 30px; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 20px; min-height: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); align-content: flex-start; }
+
+        .img-card { width: 140px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: grab; }
+        .img-thumb { width: 130px; height: 150px; border: 2px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #f4f7f9; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+        .img-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+        .img-label { font-size: 0.72rem; color: #636e72; font-weight: 600; text-align: center; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .img-remove { background: none; border: none; color: #b2bec3; cursor: pointer; font-size: 1rem; padding: 0; line-height: 1; }
+        .img-remove:hover { color: #d63031; }
+
+        /* Add more button */
+        .add-more { width: 140px; height: 170px; border: 2px dashed #d63031; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #d63031; font-weight: 600; gap: 6px; font-size: 0.9rem; transition: background 0.15s; }
+        .add-more:hover { background: #fff5f5; }
+        .add-more span { font-size: 1.8rem; line-height: 1; }
+
+        /* Right panel */
+        .right-panel { flex: 1; min-width: 280px; background: white; padding: 28px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; align-self: flex-start; }
+        .right-panel h2 { margin-top: 0; color: #2d3436; font-size: 1.4rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 18px; }
+        .right-panel p { font-size: 0.92rem; color: #636e72; line-height: 1.6; margin-top: 0; }
+
+        /* Options */
+        .panel-subtitle { font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8a8f96; margin: 16px 0 8px; }
+        .compress-option { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 13px 16px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: background 0.15s; margin-bottom: 8px; }
+        .compress-option:hover { background: #f9f9fb; }
+        .compress-option.selected { background: #f0f0f5; border-color: #d63031; }
+        .compress-option .option-text .option-label { display: block; color: #d63031; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; }
+        .compress-option .option-text .option-desc { display: block; color: #636e72; font-size: 0.88rem; }
+        .check-circle { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: #27ae60; color: white; display: none; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; }
+        .compress-option.selected .check-circle { display: flex; }
+
+        #file-count { margin: 16px 0; padding: 12px 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; text-align: center; font-size: 0.9rem; }
+        .btn-convert { background: #d63031; color: white; padding: 15px 20px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-convert:disabled { opacity: 0.6; cursor: not-allowed; }
+        #progress-text { text-align: center; color: #636e72; font-weight: 600; margin-top: 12px; min-height: 1.2em; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/" class="logo">Atlantino Tools</a>
+    <nav class="nav-links">
+        <a href="/merge">MERGE PDF</a>
+        <a href="/split">SPLIT PDF</a>
+        <a href="/compress">COMPRESS PDF</a>
+        <div class="nav-item" id="convert-dropdown">
+            <a href="javascript:void(0)">CONVERT PDF <span class="caret">&#9660;</span></a>
+            <div class="dropdown-menu">
+                <div class="dropdown-label">Convert to PDF</div>
+                <a href="/convert/word-to-pdf"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div>WORD TO PDF</a>
+                <a href="/convert/jpg-to-pdf"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div>JPG TO PDF</a>
+                <a href="/convert/excel-to-pdf"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div>EXCEL TO PDF</a>
+                <a href="/convert/powerpoint-to-pdf"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div>POWERPOINT TO PDF</a>
+                <a href="/convert/html-to-pdf"><div class="app-icon icon-html"><div class="icon-badge"></div><span class="icon-letter">&lt;/&gt;</span></div>HTML TO PDF</a>
+                <div class="dropdown-sep"></div>
+                <div class="dropdown-label">Convert from PDF</div>
+                <a href="/convert/pdf-to-word"><div class="icon-with-badge"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div><div class="pdf-badge">PDF</div></div>PDF TO WORD</a>
+                <a href="/convert/pdf-to-jpg"><div class="icon-with-badge"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div><div class="pdf-badge">PDF</div></div>PDF TO JPG</a>
+                <a href="/convert/pdf-to-excel"><div class="icon-with-badge"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div><div class="pdf-badge">PDF</div></div>PDF TO EXCEL</a>
+                <a href="/convert/pdf-to-powerpoint"><div class="icon-with-badge"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div><div class="pdf-badge">PDF</div></div>PDF TO POWERPOINT</a>
+            </div>
+        </div>
+        <a href="/rotate">ROTATE PDF</a>
+        <a href="/watermark">WATERMARK PDF</a>
+    </nav>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const item = document.getElementById('convert-dropdown');
+        const trigger = item.querySelector(':scope > a');
+        trigger.addEventListener('click', e => { e.preventDefault(); item.classList.toggle('open'); });
+        document.addEventListener('click', e => { if (!item.contains(e.target)) item.classList.remove('open'); });
+    });
+</script>
+
+<div class="ad-space">AdSense Banner (728x90)</div>
+
+<div id="screen-start" class="screen">
+    <div style="text-align:center;">
+        <h1>JPG to PDF</h1>
+        <p style="color:#636e72; margin-bottom:30px;">Convert JPG, PNG, WEBP images to a PDF file. Drag to reorder.</p>
+        <button class="btn-main" onclick="document.getElementById('file-input').click()">
+            <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;"><rect x="3" y="3" width="18" height="18" rx="2" stroke="white" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="white"/><path d="M21 15l-5-5L5 21" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Select Images
+        </button>
+        <p style="color:#aab0bb; font-size:0.85rem; margin-top:15px;">JPG, PNG, WEBP supported · Multiple files allowed</p>
+        <a href="/" class="back-link">← Back to homepage</a>
+    </div>
+</div>
+
+<div id="screen-work" class="screen">
+    <div class="left-panel" id="img-grid">
+        <div class="add-more" onclick="document.getElementById('file-input').click()">
+            <span>+</span> Add more
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <h2>JPG to PDF</h2>
+        <p>Drag images to reorder them. Each image becomes one page in the PDF.</p>
+
+        <div class="panel-subtitle">Page size</div>
+        <div class="compress-option selected" data-size="fit" onclick="pickSize('fit')">
+            <div class="option-text">
+                <span class="option-label">Fit to image</span>
+                <span class="option-desc">PDF page matches each image</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-size="a4" onclick="pickSize('a4')">
+            <div class="option-text">
+                <span class="option-label">A4</span>
+                <span class="option-desc">210 × 297 mm, image centered</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-size="letter" onclick="pickSize('letter')">
+            <div class="option-text">
+                <span class="option-label">Letter</span>
+                <span class="option-desc">215.9 × 279.4 mm, image centered</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div id="file-count">0 images selected</div>
+        <button class="btn-convert" id="btn-convert" onclick="executeConvert()" disabled>
+            <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;"><path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3V8H19" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            Convert to PDF
+        </button>
+        <div id="progress-text"></div>
+    </div>
+</div>
+
+<div id="screen-download" class="screen">
+    <h1>PDF ready!</h1>
+    <p style="color:#636e72; margin-bottom:30px;">Your images have been converted to PDF.</p>
+    <button class="btn-main" onclick="resetTool()">Convert more images</button>
+    <a href="/" class="back-link">← Back to homepage</a>
+</div>
+
+<input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" multiple style="display:none;">
+
+<script>
+    // A4 and Letter in pt (1pt = 1/72 inch)
+    const PAGE_SIZES = {
+        fit:    null,
+        a4:     { w: 595.28, h: 841.89 },
+        letter: { w: 612,    h: 792    }
+    };
+    let pageSize = 'fit';
+    let imageFiles = []; // { file, dataUrl, name }
+
+    function pickSize(s) {
+        pageSize = s;
+        document.querySelectorAll('.compress-option[data-size]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.size === s));
+    }
+
+    function updateCount() {
+        const n = imageFiles.length;
+        document.getElementById('file-count').innerText = n === 0 ? '0 images selected' : `${n} image${n > 1 ? 's' : ''} selected`;
+        document.getElementById('btn-convert').disabled = n === 0;
+    }
+
+    function removeImage(idx) {
+        imageFiles.splice(idx, 1);
+        rebuildGrid();
+        updateCount();
+    }
+
+    function rebuildGrid() {
+        const grid = document.getElementById('img-grid');
+        grid.innerHTML = '';
+        imageFiles.forEach((item, i) => {
+            const card = document.createElement('div');
+            card.className = 'img-card';
+            card.dataset.idx = i;
+            card.innerHTML = `
+                <div class="img-thumb"><img src="${item.dataUrl}" alt="${item.name}"></div>
+                <div class="img-label" title="${item.name}">${item.name}</div>
+                <button class="img-remove" onclick="removeImage(${i})" title="Remove">✕</button>
+            `;
+            grid.appendChild(card);
+        });
+        // Add more button
+        const addBtn = document.createElement('div');
+        addBtn.className = 'add-more';
+        addBtn.innerHTML = '<span>+</span> Add more';
+        addBtn.onclick = () => document.getElementById('file-input').click();
+        grid.appendChild(addBtn);
+
+        // Re-init Sortable
+        Sortable.create(grid, {
+            animation: 150,
+            filter: '.add-more',
+            onEnd(evt) {
+                const moved = imageFiles.splice(evt.oldIndex, 1)[0];
+                imageFiles.splice(evt.newIndex, 0, moved);
+                updateCount();
+            }
+        });
+    }
+
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+
+        for (const file of files) {
+            const dataUrl = await new Promise((res, rej) => {
+                const reader = new FileReader();
+                reader.onload = () => res(reader.result);
+                reader.onerror = rej;
+                reader.readAsDataURL(file);
+            });
+            imageFiles.push({ file, dataUrl, name: file.name });
+        }
+
+        document.getElementById('screen-start').style.display = 'none';
+        document.getElementById('screen-work').style.display  = 'flex';
+        rebuildGrid();
+        updateCount();
+        e.target.value = '';
+    });
+
+    async function executeConvert() {
+        if (imageFiles.length === 0) return;
+        const btn      = document.getElementById('btn-convert');
+        const progress = document.getElementById('progress-text');
+        btn.disabled   = true;
+        progress.innerText = 'Building PDF…';
+
+        try {
+            const pdfDoc = await PDFLib.PDFDocument.create();
+            const size   = PAGE_SIZES[pageSize];
+
+            for (let i = 0; i < imageFiles.length; i++) {
+                progress.innerText = `Processing image ${i + 1} of ${imageFiles.length}…`;
+                const { dataUrl, file } = imageFiles[i];
+
+                // Convert dataURL → Uint8Array
+                const base64 = dataUrl.split(',')[1];
+                const binary  = atob(base64);
+                const bytes   = new Uint8Array(binary.length);
+                for (let b = 0; b < binary.length; b++) bytes[b] = binary.charCodeAt(b);
+
+                // Embed image (JPEG or PNG)
+                let img;
+                if (file.type === 'image/png') {
+                    img = await pdfDoc.embedPng(bytes);
+                } else {
+                    // JPEG / WEBP → draw on canvas → get JPEG bytes
+                    const canvas = document.createElement('canvas');
+                    const image  = new Image();
+                    await new Promise(res => { image.onload = res; image.src = dataUrl; });
+                    canvas.width  = image.naturalWidth;
+                    canvas.height = image.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(image, 0, 0);
+                    const jpgBlob   = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
+                    const jpgBuf    = await jpgBlob.arrayBuffer();
+                    const jpgBytes  = new Uint8Array(jpgBuf);
+                    img = await pdfDoc.embedJpg(jpgBytes);
+                }
+
+                const imgDims = img.scale(1);
+
+                if (size) {
+                    // Fixed page: fit image inside page keeping aspect ratio
+                    const scale = Math.min(size.w / imgDims.width, size.h / imgDims.height);
+                    const w = imgDims.width  * scale;
+                    const h = imgDims.height * scale;
+                    const x = (size.w - w) / 2;
+                    const y = (size.h - h) / 2;
+                    const page = pdfDoc.addPage([size.w, size.h]);
+                    page.drawImage(img, { x, y, width: w, height: h });
+                } else {
+                    // Fit to image: page = image dimensions
+                    const page = pdfDoc.addPage([imgDims.width, imgDims.height]);
+                    page.drawImage(img, { x: 0, y: 0, width: imgDims.width, height: imgDims.height });
+                }
+            }
+
+            progress.innerText = 'Saving PDF…';
+            const outBytes = await pdfDoc.save();
+            const blob = new Blob([outBytes], { type: 'application/pdf' });
+            const a    = document.createElement('a');
+            a.href     = URL.createObjectURL(blob);
+            a.download = 'images_to_pdf.pdf';
+            a.click();
+            URL.revokeObjectURL(a.href);
+
+            document.getElementById('screen-work').style.display     = 'none';
+            document.getElementById('screen-download').style.display = 'flex';
+
+        } catch (err) {
+            console.error(err);
+            progress.innerText = 'Error converting images. Please try again.';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function resetTool() {
+        imageFiles = [];
+        document.getElementById('screen-download').style.display = 'none';
+        document.getElementById('screen-start').style.display    = 'flex';
+        document.getElementById('progress-text').innerText = '';
+    }
+</script>
+</body>
+</html>
