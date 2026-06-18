@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HTML to PDF - Atlantino Tools</title>
+    <script>
+        if (!window.FileReader || !window.Blob || !window.Promise) {
+            alert("Your browser is outdated. Please update it to use Atlantino Tools.");
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* ===== GENERAL ===== */
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; line-height: 1.6; }
+
+        /* ===== HEADER ===== */
+        header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
+        .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
+        .nav-links { display: flex; align-items: center; }
+        .nav-links > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
+        .nav-links > a:hover { color: #d63031; }
+
+        /* ===== DROPDOWN ===== */
+        .nav-item { position: relative; margin-right: 15px; }
+        .nav-item > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; padding: 8px 0; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+        .nav-item:hover > a, .nav-item.open > a { color: #d63031; }
+        .nav-item .caret { font-size: 0.6rem; transition: transform 0.2s; }
+        .nav-item:hover .caret, .nav-item.open .caret { transform: rotate(180deg); }
+        .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); min-width: 200px; padding: 8px 0; z-index: 100; }
+        .nav-item:hover .dropdown-menu, .nav-item.open .dropdown-menu { display: block; }
+        .dropdown-menu a { display: flex; align-items: center; gap: 11px; padding: 10px 18px; color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap; margin-right: 0 !important; }
+        .dropdown-menu a:hover { background: #f4f7f9; color: #d63031; }
+        .dropdown-sep { height: 1px; background: #e2e8f0; margin: 6px 0; }
+        .dropdown-label { padding: 6px 18px 2px; font-size: 0.7rem; font-weight: 700; color: #a0aec0; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ===== OFFICE ICONS ===== */
+        .app-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; overflow: hidden; font-family: 'Arial Black', Arial, sans-serif; font-weight: 900; }
+        .app-icon .icon-letter { font-size: 15px; color: white; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); position: relative; z-index: 2; }
+        .app-icon .icon-badge { position: absolute; top: -1px; left: -1px; background: rgba(255,255,255,0.18); width: 13px; height: 13px; border-radius: 0 0 4px 0; }
+        .icon-word  { background: linear-gradient(135deg, #1e6fbb 0%, #185ABD 100%); }
+        .icon-jpg   { background: linear-gradient(135deg, #f0b429 0%, #d9961f 100%); }
+        .icon-excel { background: linear-gradient(135deg, #1a9e52 0%, #107C41 100%); }
+        .icon-pptx  { background: linear-gradient(135deg, #e8623a 0%, #D24726 100%); }
+        .icon-html  { background: linear-gradient(135deg, #e44d26 0%, #c0390f 100%); }
+        .icon-jpg-img { position: relative; overflow: hidden; }
+        .icon-jpg-img .sky   { position: absolute; top: 0; left: 0; right: 0; bottom: 40%; background: rgba(255,255,255,0.22); }
+        .icon-jpg-img .sun   { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.9); }
+        .icon-jpg-img .hills { position: absolute; bottom: 0; left: 0; right: 0; height: 14px; background: rgba(255,255,255,0.18); clip-path: polygon(0 100%, 30% 20%, 55% 70%, 75% 30%, 100% 60%, 100% 100%); }
+        .icon-with-badge { position: relative; }
+        .icon-with-badge .pdf-badge { position: absolute; bottom: -3px; right: -3px; background: #C0392B; color: white; font-size: 5.5px; font-family: Arial, sans-serif; font-weight: 900; padding: 1.5px 2.5px; border-radius: 2px; line-height: 1; letter-spacing: 0.2px; border: 1.5px solid #f4f7f9; }
+
+        /* ===== AD SPACE ===== */
+        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 30px; border: 1px dashed #cbd5e0; box-sizing: border-box; }
+
+        /* ===== SCREENS ===== */
+        .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
+
+        /* ===== START SCREEN ===== */
+        #screen-start { display: flex; min-height: calc(100vh - 220px); align-items: center; justify-content: center; flex-direction: column; padding: 40px; }
+
+        /* Input method tabs */
+        .method-tabs { display: flex; gap: 0; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 28px; }
+        .method-tab { flex: 1; padding: 12px 24px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: none; background: #fafafa; color: #636e72; transition: 0.15s; text-align: center; letter-spacing: 0.3px; }
+        .method-tab.active { background: #d63031; color: white; }
+        .method-tab:not(:last-child) { border-right: 1.5px solid #e2e8f0; }
+
+        /* Method panels */
+        .method-panel { display: none; width: 100%; max-width: 600px; }
+        .method-panel.active { display: block; }
+
+        /* Upload zone */
+        .upload-zone { border: 2px dashed #d63031; border-radius: 12px; padding: 40px 30px; text-align: center; cursor: pointer; transition: background 0.15s; background: white; }
+        .upload-zone:hover { background: #fff5f5; }
+        .upload-zone .upload-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .upload-zone p { margin: 6px 0; color: #636e72; font-size: 0.92rem; }
+        .upload-zone strong { color: #d63031; }
+
+        /* Paste HTML area */
+        .paste-area { background: white; border-radius: 12px; border: 1.5px solid #e2e8f0; overflow: hidden; }
+        .paste-area-header { padding: 12px 18px; background: #fafafa; border-bottom: 1px solid #e2e8f0; font-size: 0.78rem; font-weight: 700; color: #8a8f96; letter-spacing: 0.5px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+        .paste-area-header button { background: #e2e8f0; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; color: #636e72; cursor: pointer; }
+        .paste-area-header button:hover { background: #d63031; color: white; }
+        textarea#html-input { width: 100%; min-height: 220px; padding: 14px 18px; border: none; font-family: 'Courier New', monospace; font-size: 12.5px; line-height: 1.6; color: #2d3436; background: white; resize: vertical; outline: none; box-sizing: border-box; }
+
+        .btn-main { background: #d63031; color: white; padding: 15px 20px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-preview { margin-top: 16px; width: 100%; }
+
+        /* ===== PREVIEW + OPTIONS ===== */
+        .preview-container {
+            flex: 1; max-width: 700px; max-height: 80vh; overflow-y: auto;
+            background: #d0d3d8; border-radius: 12px; padding: 32px 40px;
+            display: flex; flex-direction: column; align-items: center;
+            scrollbar-width: thin; scrollbar-color: #aab0bb #d0d3d8;
+        }
+        .preview-container::-webkit-scrollbar { width: 7px; }
+        .preview-container::-webkit-scrollbar-track { background: #d0d3d8; border-radius: 10px; }
+        .preview-container::-webkit-scrollbar-thumb { background: #aab0bb; border-radius: 10px; }
+
+        /* HTML page preview */
+        .html-page {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 6px 24px rgba(0,0,0,0.10);
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #000;
+            transition: width 0.25s, min-height 0.25s, padding 0.25s;
+            word-wrap: break-word; overflow-wrap: break-word;
+        }
+        /* Styles applied inside the preview iframe */
+        #preview-iframe {
+            width: 100%; border: none; background: white;
+            min-height: 400px; display: block;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 6px 24px rgba(0,0,0,0.10);
+            border-radius: 2px;
+        }
+
+        /* ===== RIGHT PANEL ===== */
+        .split-panel { background: white; padding: 0; border-radius: 12px; width: 380px; flex-shrink: 0; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; align-self: flex-start; }
+        .panel-title { margin: 0; padding: 22px 25px 18px; text-align: center; font-size: 1.5rem; font-weight: 700; color: #2d3436; border-bottom: 1px solid #e2e8f0; }
+        .panel-subtitle { padding: 10px 25px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8a8f96; background: #fafafa; border-bottom: 1px solid #e2e8f0; }
+        .compress-option { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 15px 25px; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background 0.15s; }
+        .compress-option:hover { background: #f9f9fb; }
+        .compress-option.selected { background: #f0f0f5; }
+        .compress-option .option-text .option-label { display: block; color: #d63031; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px; }
+        .compress-option .option-text .option-desc { display: block; color: #636e72; font-size: 0.92rem; }
+        .check-circle { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #27ae60; color: white; display: none; align-items: center; justify-content: center; font-weight: bold; font-size: 0.95rem; }
+        .compress-option.selected .check-circle { display: flex; }
+        .panel-footer { padding: 22px; }
+        #file-info { margin-bottom: 18px; padding: 12px 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; text-align: center; font-size: 0.9rem; word-break: break-all; }
+        .btn-panel { background: #d63031; color: white; padding: 15px 20px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-panel:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-panel svg { width: 20px; height: 20px; flex-shrink: 0; }
+        #progress-text { text-align: center; color: #636e72; font-weight: 600; margin-top: 12px; min-height: 1.2em; font-size: 0.9rem; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/" class="logo">Atlantino Tools</a>
+    <nav class="nav-links">
+        <a href="/merge">MERGE PDF</a>
+        <a href="/split">SPLIT PDF</a>
+        <a href="/compress">COMPRESS PDF</a>
+
+        <div class="nav-item" id="convert-dropdown">
+            <a href="javascript:void(0)">CONVERT PDF <span class="caret">&#9660;</span></a>
+            <div class="dropdown-menu">
+                <div class="dropdown-label">Convert to PDF</div>
+                <a href="/convert/word-to-pdf"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div>WORD TO PDF</a>
+                <a href="/convert/jpg-to-pdf"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div>JPG TO PDF</a>
+                <a href="/convert/excel-to-pdf"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div>EXCEL TO PDF</a>
+                <a href="/convert/powerpoint-to-pdf"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div>POWERPOINT TO PDF</a>
+                <a href="/convert/html-to-pdf"><div class="app-icon icon-html"><div class="icon-badge"></div><span class="icon-letter">&lt;/&gt;</span></div>HTML TO PDF</a>
+                <div class="dropdown-sep"></div>
+                <div class="dropdown-label">Convert from PDF</div>
+                <a href="/convert/pdf-to-word"><div class="icon-with-badge"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div><div class="pdf-badge">PDF</div></div>PDF TO WORD</a>
+                <a href="/convert/pdf-to-jpg"><div class="icon-with-badge"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div><div class="pdf-badge">PDF</div></div>PDF TO JPG</a>
+                <a href="/convert/pdf-to-excel"><div class="icon-with-badge"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div><div class="pdf-badge">PDF</div></div>PDF TO EXCEL</a>
+                <a href="/convert/pdf-to-powerpoint"><div class="icon-with-badge"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div><div class="pdf-badge">PDF</div></div>PDF TO POWERPOINT</a>
+            </div>
+        </div>
+
+        <a href="/rotate">ROTATE PDF</a>
+        <a href="/watermark">WATERMARK PDF</a>
+    </nav>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const item    = document.getElementById('convert-dropdown');
+        const trigger = item.querySelector(':scope > a');
+        trigger.addEventListener('click', e => { e.preventDefault(); item.classList.toggle('open'); });
+        document.addEventListener('click', e => { if (!item.contains(e.target)) item.classList.remove('open'); });
+    });
+</script>
+
+<div class="ad-space">AdSense Banner (728x90)</div>
+
+<!-- ── START SCREEN ───────────────────────────────────────────────────────── -->
+<div id="screen-start" class="screen" style="display:flex;">
+    <div style="text-align:center; width:100%; max-width:640px;">
+        <h1 style="margin-bottom:6px;">HTML to PDF</h1>
+        <p style="color:#636e72; margin-bottom:28px;">Upload an HTML file or paste HTML code and convert it to PDF instantly.</p>
+
+        <!-- Method tabs -->
+        <div class="method-tabs" style="max-width:340px; margin: 0 auto 24px;">
+            <div class="method-tab active" onclick="switchMethod('file')">&#128196; Upload file</div>
+            <div class="method-tab" onclick="switchMethod('paste')">&#128221; Paste code</div>
+        </div>
+
+        <!-- Upload file -->
+        <div class="method-panel active" id="panel-file">
+            <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+                <div class="upload-icon">&#128196;</div>
+                <strong>Click to select your HTML file</strong>
+                <p>or drag & drop it here</p>
+                <p style="font-size:0.8rem; color:#aab0bb;">.html and .htm files supported</p>
+            </div>
+        </div>
+
+        <!-- Paste code -->
+        <div class="method-panel" id="panel-paste">
+            <div class="paste-area">
+                <div class="paste-area-header">
+                    HTML code
+                    <button onclick="loadExample()">Load example</button>
+                </div>
+                <textarea id="html-input" placeholder="Paste your HTML here…&#10;&#10;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;&#10;  &lt;body&gt;&#10;    &lt;h1&gt;Hello World&lt;/h1&gt;&#10;  &lt;/body&gt;&#10;&lt;/html&gt;"></textarea>
+            </div>
+            <button class="btn-main btn-preview" onclick="previewPasted()">
+                <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="white" stroke-width="2"/></svg>
+                Preview & Continue
+            </button>
+        </div>
+
+        <a href="/" style="margin-top:20px; display:inline-block; color:#718096; text-decoration:none; font-size:0.9rem;">← Back to homepage</a>
+    </div>
+</div>
+
+<!-- ── WORK SCREEN ────────────────────────────────────────────────────────── -->
+<div id="screen-work" class="screen">
+
+    <!-- HTML rendered preview inside iframe (isolated styles) -->
+    <div id="preview-area" class="preview-container">
+        <iframe id="preview-iframe" title="HTML Preview"></iframe>
+    </div>
+
+    <!-- Options panel -->
+    <div class="split-panel">
+        <h2 class="panel-title">Convert to PDF</h2>
+
+        <div class="panel-subtitle">Page format</div>
+        <div class="compress-option selected" data-format="a4" onclick="selectFormat('a4')">
+            <div class="option-text">
+                <span class="option-label">A4</span>
+                <span class="option-desc">210 × 297 mm · Most countries</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-format="letter" onclick="selectFormat('letter')">
+            <div class="option-text">
+                <span class="option-label">Letter</span>
+                <span class="option-desc">215.9 × 279.4 mm · US & Canada</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-subtitle">Orientation</div>
+        <div class="compress-option selected" data-orientation="portrait" onclick="selectOrientation('portrait')">
+            <div class="option-text">
+                <span class="option-label">
+                    <svg style="width:14px;height:14px;vertical-align:middle;margin-right:5px;" viewBox="0 0 14 18" fill="none"><rect x="1" y="1" width="12" height="16" rx="1.5" stroke="#d63031" stroke-width="1.5"/></svg>
+                    Portrait
+                </span>
+                <span class="option-desc">Vertical page</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-orientation="landscape" onclick="selectOrientation('landscape')">
+            <div class="option-text">
+                <span class="option-label">
+                    <svg style="width:18px;height:14px;vertical-align:middle;margin-right:5px;" viewBox="0 0 18 14" fill="none"><rect x="1" y="1" width="16" height="12" rx="1.5" stroke="#d63031" stroke-width="1.5"/></svg>
+                    Landscape
+                </span>
+                <span class="option-desc">Horizontal page</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-subtitle">Background</div>
+        <div class="compress-option selected" data-bg="yes" onclick="selectBg('yes')">
+            <div class="option-text">
+                <span class="option-label">Include background</span>
+                <span class="option-desc">Colors and images preserved</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-bg="no" onclick="selectBg('no')">
+            <div class="option-text">
+                <span class="option-label">White background</span>
+                <span class="option-desc">Cleaner, ink-friendly output</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-footer">
+            <div id="file-info">No file loaded</div>
+            <button class="btn-panel" id="btn-convert" onclick="executeConvert()" disabled>
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 3V8H19" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M10 12h6M10 16h4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Convert to PDF
+            </button>
+            <div id="progress-text"></div>
+            <button onclick="goBack()" style="margin-top:14px; width:100%; background:none; border:1px solid #e2e8f0; border-radius:6px; padding:10px; color:#636e72; font-weight:600; cursor:pointer; font-size:0.88rem;">← Convert another file</button>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="file-input" accept=".html,.htm" style="display:none;">
+
+<script>
+    // ── State ─────────────────────────────────────────────────────────────────
+    let currentFormat = 'a4';
+    let currentOrient = 'portrait';
+    let currentBg     = 'yes';
+    let htmlContent   = '';    // raw HTML string to convert
+    let outputName    = 'document';
+
+    // ── Method tabs ───────────────────────────────────────────────────────────
+    function switchMethod(m) {
+        document.querySelectorAll('.method-tab').forEach((t, i) =>
+            t.classList.toggle('active', (i === 0 && m === 'file') || (i === 1 && m === 'paste')));
+        document.getElementById('panel-file').classList.toggle('active', m === 'file');
+        document.getElementById('panel-paste').classList.toggle('active', m === 'paste');
+    }
+
+    // ── File upload ───────────────────────────────────────────────────────────
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        outputName  = file.name.replace(/\.(html|htm)$/i, '');
+        htmlContent = await file.text();
+        showPreview(htmlContent, file.name);
+    });
+
+    // Drag & drop on upload zone
+    document.addEventListener('DOMContentLoaded', () => {
+        const zone = document.querySelector('.upload-zone');
+        if (!zone) return;
+        zone.addEventListener('dragover',  e => { e.preventDefault(); zone.style.background = '#fff5f5'; });
+        zone.addEventListener('dragleave', ()  => { zone.style.background = ''; });
+        zone.addEventListener('drop', async (e) => {
+            e.preventDefault(); zone.style.background = '';
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+            outputName  = file.name.replace(/\.(html|htm)$/i, '');
+            htmlContent = await file.text();
+            showPreview(htmlContent, file.name);
+        });
+    });
+
+    // ── Paste code preview ────────────────────────────────────────────────────
+    function previewPasted() {
+        const code = document.getElementById('html-input').value.trim();
+        if (!code) { alert('Please paste some HTML code first.'); return; }
+        htmlContent = code;
+        outputName  = 'html_document';
+        showPreview(code, 'pasted code');
+    }
+
+    function loadExample() {
+        document.getElementById('html-input').value = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; color: #2d3436; }
+    h1   { color: #d63031; border-bottom: 2px solid #d63031; padding-bottom: 8px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th    { background: #d63031; color: white; padding: 10px 14px; text-align: left; }
+    td    { padding: 8px 14px; border-bottom: 1px solid #e2e8f0; }
+    tr:nth-child(even) td { background: #fff5f5; }
+  </style>
+</head>
+<body>
+  <h1>Sample Report</h1>
+  <p>This is a sample HTML document converted to PDF by <strong>Atlantino Tools</strong>.</p>
+  <table>
+    <tr><th>Product</th><th>Units</th><th>Revenue</th></tr>
+    <tr><td>Widget A</td><td>1,200</td><td>$24,000</td></tr>
+    <tr><td>Widget B</td><td>850</td><td>$17,000</td></tr>
+    <tr><td>Widget C</td><td>2,100</td><td>$42,000</td></tr>
+  </table>
+</body>
+</html>`;
+    }
+
+    // ── Show preview in iframe ────────────────────────────────────────────────
+    function showPreview(html, label) {
+        document.getElementById('screen-start').style.display = 'none';
+        document.getElementById('screen-work').style.display  = 'flex';
+        document.getElementById('file-info').innerText        = label;
+        document.getElementById('btn-convert').disabled       = false;
+        document.getElementById('progress-text').innerText    = '';
+
+        const iframe = document.getElementById('preview-iframe');
+        // Use srcdoc for safe sandboxed rendering
+        iframe.srcdoc = html;
+        // Auto-resize iframe to content height after load
+        iframe.onload = () => {
+            try {
+                const h = iframe.contentDocument.body.scrollHeight;
+                iframe.style.height = Math.max(400, h + 40) + 'px';
+            } catch(_) { iframe.style.height = '600px'; }
+        };
+    }
+
+    // ── Option selectors ──────────────────────────────────────────────────────
+    function selectFormat(fmt) {
+        currentFormat = fmt;
+        document.querySelectorAll('.compress-option[data-format]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.format === fmt));
+    }
+    function selectOrientation(ori) {
+        currentOrient = ori;
+        document.querySelectorAll('.compress-option[data-orientation]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.orientation === ori));
+    }
+    function selectBg(bg) {
+        currentBg = bg;
+        document.querySelectorAll('.compress-option[data-bg]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.bg === bg));
+    }
+
+    // ── Convert ───────────────────────────────────────────────────────────────
+    async function executeConvert() {
+        if (!htmlContent) return;
+        const btn      = document.getElementById('btn-convert');
+        const progress = document.getElementById('progress-text');
+        btn.disabled   = true;
+        btn.innerHTML  = '<span class="spinner"></span> Generating PDF…';
+        progress.innerText = '';
+
+        // Build a hidden container with the HTML content
+        const container = document.createElement('div');
+        container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;';
+        container.innerHTML = htmlContent;
+        // Remove scripts from the content (safety)
+        container.querySelectorAll('script').forEach(s => s.remove());
+        document.body.appendChild(container);
+
+        const bg = currentBg === 'yes' ? '#ffffff' : '#ffffff';
+
+        const opt = {
+            margin:      10,
+            filename:    outputName + '.pdf',
+            image:       { type: 'jpeg', quality: 0.97 },
+            html2canvas: {
+                scale:           2,
+                useCORS:         true,
+                backgroundColor: bg,
+                letterRendering: true,
+                allowTaint:      true
+            },
+            jsPDF: {
+                unit:        'mm',
+                format:      currentFormat,
+                orientation: currentOrient,
+                compress:    true
+            },
+            pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        try {
+            await html2pdf().set(opt).from(container).save();
+            progress.innerText = '✓ Done! Download started.';
+        } catch (err) {
+            console.error(err);
+            progress.innerText = 'Error generating PDF. Please try again.';
+        } finally {
+            document.body.removeChild(container);
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;">
+                    <path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 3V8H19" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M10 12h6M10 16h4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Convert to PDF`;
+        }
+    }
+
+    function goBack() {
+        htmlContent = '';
+        document.getElementById('screen-work').style.display  = 'none';
+        document.getElementById('screen-start').style.display = 'flex';
+        document.getElementById('html-input').value = '';
+        document.getElementById('file-info').innerText = 'No file loaded';
+        document.getElementById('preview-iframe').srcdoc = '';
+        document.getElementById('btn-convert').disabled = true;
+        document.getElementById('progress-text').innerText = '';
+        document.getElementById('file-input').value = '';
+    }
+</script>
+</body>
+</html>
