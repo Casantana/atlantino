@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PowerPoint to PDF - Atlantino Tools</title>
+    <script>
+        if (!window.FileReader || !window.Blob || !window.Promise) {
+            alert("Your browser is outdated. Please update it to use Atlantino Tools.");
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* ===== GENERAL ===== */
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; line-height: 1.6; }
+
+        /* ===== HEADER ===== */
+        header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
+        .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
+        .nav-links { display: flex; align-items: center; }
+        .nav-links > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
+        .nav-links > a:hover { color: #d63031; }
+
+        /* ===== DROPDOWN ===== */
+        .nav-item { position: relative; margin-right: 15px; }
+        .nav-item > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; padding: 8px 0; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+        .nav-item:hover > a, .nav-item.open > a { color: #d63031; }
+        .nav-item .caret { font-size: 0.6rem; transition: transform 0.2s; }
+        .nav-item:hover .caret, .nav-item.open .caret { transform: rotate(180deg); }
+        .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); min-width: 200px; padding: 8px 0; z-index: 100; }
+        .nav-item:hover .dropdown-menu, .nav-item.open .dropdown-menu { display: block; }
+        .dropdown-menu a { display: flex; align-items: center; gap: 11px; padding: 10px 18px; color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap; margin-right: 0 !important; }
+        .dropdown-menu a:hover { background: #f4f7f9; color: #d63031; }
+        .dropdown-sep { height: 1px; background: #e2e8f0; margin: 6px 0; }
+        .dropdown-label { padding: 6px 18px 2px; font-size: 0.7rem; font-weight: 700; color: #a0aec0; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ===== OFFICE ICONS ===== */
+        .app-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; overflow: hidden; font-family: 'Arial Black', Arial, sans-serif; font-weight: 900; }
+        .app-icon .icon-letter { font-size: 15px; color: white; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); position: relative; z-index: 2; }
+        .app-icon .icon-badge { position: absolute; top: -1px; left: -1px; background: rgba(255,255,255,0.18); width: 13px; height: 13px; border-radius: 0 0 4px 0; }
+        .icon-word  { background: linear-gradient(135deg, #1e6fbb 0%, #185ABD 100%); }
+        .icon-jpg   { background: linear-gradient(135deg, #f0b429 0%, #d9961f 100%); }
+        .icon-excel { background: linear-gradient(135deg, #1a9e52 0%, #107C41 100%); }
+        .icon-pptx  { background: linear-gradient(135deg, #e8623a 0%, #D24726 100%); }
+        .icon-html  { background: linear-gradient(135deg, #e44d26 0%, #c0390f 100%); }
+        .icon-jpg-img { position: relative; overflow: hidden; }
+        .icon-jpg-img .sky   { position: absolute; top: 0; left: 0; right: 0; bottom: 40%; background: rgba(255,255,255,0.22); }
+        .icon-jpg-img .sun   { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.9); }
+        .icon-jpg-img .hills { position: absolute; bottom: 0; left: 0; right: 0; height: 14px; background: rgba(255,255,255,0.18); clip-path: polygon(0 100%, 30% 20%, 55% 70%, 75% 30%, 100% 60%, 100% 100%); }
+        .icon-with-badge { position: relative; }
+        .icon-with-badge .pdf-badge { position: absolute; bottom: -3px; right: -3px; background: #C0392B; color: white; font-size: 5.5px; font-family: Arial, sans-serif; font-weight: 900; padding: 1.5px 2.5px; border-radius: 2px; line-height: 1; letter-spacing: 0.2px; border: 1.5px solid #f4f7f9; }
+
+        /* ===== AD SPACE ===== */
+        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 30px; border: 1px dashed #cbd5e0; box-sizing: border-box; }
+
+        /* ===== SCREENS ===== */
+        .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
+
+        /* ===== SLIDE PREVIEW ===== */
+        .preview-container {
+            flex: 1; max-width: 700px; max-height: 80vh; overflow-y: auto;
+            background: #d0d3d8; border-radius: 12px; padding: 28px 32px;
+            display: flex; flex-direction: column; align-items: center; gap: 22px;
+            scrollbar-width: thin; scrollbar-color: #aab0bb #d0d3d8;
+        }
+        .preview-container::-webkit-scrollbar { width: 7px; }
+        .preview-container::-webkit-scrollbar-track { background: #d0d3d8; border-radius: 10px; }
+        .preview-container::-webkit-scrollbar-thumb { background: #aab0bb; border-radius: 10px; }
+
+        /* Slide card (16:9 or 4:3, set dynamically via JS) */
+        .slide-card { position: relative; width: 100%; }
+        .slide-number-tag {
+            position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+            background: #2d3436; color: white; font-size: 0.68rem; font-weight: 700;
+            padding: 3px 10px; border-radius: 10px; letter-spacing: 0.5px; z-index: 2;
+        }
+        .slide-box {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 6px 24px rgba(0,0,0,0.10);
+            box-sizing: border-box;
+            width: 100%;
+            aspect-ratio: 16 / 9; /* overridden inline per actual slide ratio */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 7% 9%;
+            font-family: 'Calibri', 'Carlito', Arial, sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+        .slide-box .accent-bar { position: absolute; top: 0; left: 0; right: 0; height: 6%; background: linear-gradient(90deg, #D24726, #e8623a); }
+        .slide-title { font-size: 1.9rem; font-weight: 700; color: #2d3436; margin: 0 0 0.3em; line-height: 1.15; }
+        .slide-subtitle { font-size: 1.1rem; color: #8a8f96; margin: 0 0 0.6em; font-weight: 400; }
+        .slide-body { font-size: 1.05rem; color: #2d3436; }
+        .slide-body ul { margin: 0; padding-left: 1.2em; }
+        .slide-body li { margin-bottom: 0.4em; line-height: 1.4; }
+        .slide-body p { margin: 0 0 0.4em; }
+        .slide-page-num { position: absolute; bottom: 4%; right: 5%; font-size: 0.72rem; color: #aab0bb; font-weight: 600; }
+        .slide-empty { color: #c0c4ca; font-style: italic; text-align: center; font-size: 1rem; }
+
+        /* ===== PANEL DERECHO ===== */
+        .split-panel { background: white; padding: 0; border-radius: 12px; width: 380px; flex-shrink: 0; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; align-self: flex-start; }
+        .panel-title { margin: 0; padding: 22px 25px 18px; text-align: center; font-size: 1.5rem; font-weight: 700; color: #2d3436; border-bottom: 1px solid #e2e8f0; }
+        .panel-subtitle { padding: 10px 25px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8a8f96; background: #fafafa; border-bottom: 1px solid #e2e8f0; }
+
+        .compress-option { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 15px 25px; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background 0.15s; }
+        .compress-option:hover { background: #f9f9fb; }
+        .compress-option.selected { background: #f0f0f5; }
+        .compress-option .option-text .option-label { display: block; color: #d63031; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px; }
+        .compress-option .option-text .option-desc { display: block; color: #636e72; font-size: 0.92rem; }
+        .check-circle { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #27ae60; color: white; display: none; align-items: center; justify-content: center; font-weight: bold; font-size: 0.95rem; }
+        .compress-option.selected .check-circle { display: flex; }
+
+        .panel-footer { padding: 22px; }
+        #file-info { margin-bottom: 18px; padding: 12px 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; text-align: center; font-size: 0.9rem; word-break: break-all; }
+        .info-note { padding: 12px 15px; background: #eaf4ff; border: 1px solid #cce5ff; border-radius: 6px; color: #004085; font-size: 0.82rem; line-height: 1.5; margin-bottom: 18px; }
+
+        .btn-main { background: #d63031; color: white; padding: 15px 20px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-main svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+        #progress-text { text-align: center; color: #636e72; font-weight: 600; margin-top: 12px; min-height: 1.2em; font-size: 0.9rem; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/" class="logo">Atlantino Tools</a>
+    <nav class="nav-links">
+        <a href="/merge">MERGE PDF</a>
+        <a href="/split">SPLIT PDF</a>
+        <a href="/compress">COMPRESS PDF</a>
+
+        <div class="nav-item" id="convert-dropdown">
+            <a href="javascript:void(0)">CONVERT PDF <span class="caret">&#9660;</span></a>
+            <div class="dropdown-menu">
+                <div class="dropdown-label">Convert to PDF</div>
+                <a href="/convert/word-to-pdf"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div>WORD TO PDF</a>
+                <a href="/convert/jpg-to-pdf"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div>JPG TO PDF</a>
+                <a href="/convert/excel-to-pdf"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div>EXCEL TO PDF</a>
+                <a href="/convert/powerpoint-to-pdf"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div>POWERPOINT TO PDF</a>
+                <a href="/convert/html-to-pdf"><div class="app-icon icon-html"><div class="icon-badge"></div><span class="icon-letter">&lt;/&gt;</span></div>HTML TO PDF</a>
+                <div class="dropdown-sep"></div>
+                <div class="dropdown-label">Convert from PDF</div>
+                <a href="/convert/pdf-to-word"><div class="icon-with-badge"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div><div class="pdf-badge">PDF</div></div>PDF TO WORD</a>
+                <a href="/convert/pdf-to-jpg"><div class="icon-with-badge"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div><div class="pdf-badge">PDF</div></div>PDF TO JPG</a>
+                <a href="/convert/pdf-to-excel"><div class="icon-with-badge"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div><div class="pdf-badge">PDF</div></div>PDF TO EXCEL</a>
+                <a href="/convert/pdf-to-powerpoint"><div class="icon-with-badge"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div><div class="pdf-badge">PDF</div></div>PDF TO POWERPOINT</a>
+            </div>
+        </div>
+
+        <a href="/rotate">ROTATE PDF</a>
+        <a href="/watermark">WATERMARK PDF</a>
+    </nav>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const item    = document.getElementById('convert-dropdown');
+        const trigger = item.querySelector(':scope > a');
+        trigger.addEventListener('click', e => { e.preventDefault(); item.classList.toggle('open'); });
+        document.addEventListener('click', e => { if (!item.contains(e.target)) item.classList.remove('open'); });
+    });
+</script>
+
+<div class="ad-space">AdSense Banner (728x90)</div>
+
+<!-- START -->
+<div id="screen-start" class="screen" style="display:flex; align-items:center; justify-content:center;">
+    <div style="text-align:center;">
+        <h1>PowerPoint to PDF</h1>
+        <p style="color:#636e72; margin-bottom:30px;">Convert your .pptx slides to PDF right in your browser.</p>
+        <button class="btn-main" style="width:auto; padding:15px 40px; font-size:1.05rem; margin:0 auto;" onclick="document.getElementById('file-input').click()">
+            <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;">
+                <path d="M12 16V4m0 12-4-4m4 4 4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 20h16" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Select PowerPoint file
+        </button>
+        <p style="color:#aab0bb; font-size:0.85rem; margin-top:15px;">Only .pptx files are supported</p>
+        <a href="/" style="margin-top:15px; display:inline-block; color:#718096; text-decoration:none; font-size:0.9rem;">← Back to homepage</a>
+    </div>
+</div>
+
+<!-- WORK -->
+<div id="screen-work" class="screen">
+    <div id="preview-area" class="preview-container"></div>
+
+    <div class="split-panel">
+        <h2 class="panel-title">Convert to PDF</h2>
+
+        <div class="panel-subtitle">Slide numbers</div>
+        <div class="compress-option selected" data-numbers="show" onclick="selectNumbers('show')">
+            <div class="option-text">
+                <span class="option-label">Show numbers</span>
+                <span class="option-desc">Display slide number on each page</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-numbers="hide" onclick="selectNumbers('hide')">
+            <div class="option-text">
+                <span class="option-label">Hide numbers</span>
+                <span class="option-desc">Clean pages without numbering</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-subtitle">Style</div>
+        <div class="compress-option selected" data-style="accent" onclick="selectStyle('accent')">
+            <div class="option-text">
+                <span class="option-label">Accent bar</span>
+                <span class="option-desc">Colored bar at the top of each slide</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-style="plain" onclick="selectStyle('plain')">
+            <div class="option-text">
+                <span class="option-label">Plain</span>
+                <span class="option-desc">No color accents, text only</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-footer">
+            <div class="info-note">
+                This tool extracts the <strong>text content</strong> of each slide (titles and bullet points). Images, exact fonts, and original slide design are not preserved.
+            </div>
+            <div id="file-info">No file selected</div>
+            <button class="btn-main" id="btn-convert" onclick="executeConvert()" disabled>
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 3V8H19" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M10 12h6M10 16h4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Convert to PDF
+            </button>
+            <div id="progress-text"></div>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="file-input" accept=".pptx" style="display:none;">
+
+<script>
+    // ── State ─────────────────────────────────────────────────────────────────
+    let slidesData        = [];   // [{ title, subtitle, body: [lines] }, ...]
+    let slideRatio         = 16 / 9; // width / height, auto-detected
+    let slideWidthMM       = 254;     // default widescreen mm (10in x 7.5in approx, recalculated)
+    let slideHeightMM      = 142.875;
+    let originalFileName   = '';
+    let numbersMode        = 'show';
+    let styleMode           = 'accent';
+
+    function selectNumbers(m) {
+        numbersMode = m;
+        document.querySelectorAll('.compress-option[data-numbers]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.numbers === m));
+        applyPreviewToggles();
+    }
+
+    function selectStyle(m) {
+        styleMode = m;
+        document.querySelectorAll('.compress-option[data-style]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.style === m));
+        applyPreviewToggles();
+    }
+
+    function applyPreviewToggles() {
+        document.querySelectorAll('.slide-page-num').forEach(el =>
+            el.style.display = numbersMode === 'show' ? 'block' : 'none');
+        document.querySelectorAll('.accent-bar').forEach(el =>
+            el.style.display = styleMode === 'accent' ? 'block' : 'none');
+    }
+
+    // ── XML helpers (browser DOMParser, OOXML tag names used as-is) ─────────────
+    function parseXml(str) {
+        return new DOMParser().parseFromString(str, 'application/xml');
+    }
+
+    function getAttrNS(el, localName) {
+        // Try the common r: prefix used for relationship ids in OOXML
+        return el.getAttribute('r:id') || el.getAttribute(localName);
+    }
+
+    // ── Extract title / subtitle / body text from one slide XML doc ─────────────
+    function extractSlideText(doc) {
+        const shapes = doc.getElementsByTagName('p:sp');
+        const titleLines = [], subtitleLines = [], bodyLines = [];
+
+        for (let i = 0; i < shapes.length; i++) {
+            const sp = shapes[i];
+            const phNodes = sp.getElementsByTagName('p:ph');
+            const phType  = phNodes.length ? phNodes[0].getAttribute('type') : null;
+
+            const paragraphs = sp.getElementsByTagName('a:p');
+            const lines = [];
+            for (let j = 0; j < paragraphs.length; j++) {
+                const runs = paragraphs[j].getElementsByTagName('a:t');
+                let line = '';
+                for (let k = 0; k < runs.length; k++) line += runs[k].textContent;
+                if (line.trim() !== '') lines.push(line);
+            }
+
+            if (phType === 'title' || phType === 'ctrTitle') {
+                titleLines.push(...lines);
+            } else if (phType === 'subTitle') {
+                subtitleLines.push(...lines);
+            } else {
+                bodyLines.push(...lines);
+            }
+        }
+
+        return {
+            title:    titleLines.join(' '),
+            subtitle: subtitleLines.join(' '),
+            body:     bodyLines
+        };
+    }
+
+    // ── Build slide preview card ──────────────────────────────────────────────
+    function renderSlideCard(slide, index, total) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'slide-card';
+
+        const tag = document.createElement('div');
+        tag.className = 'slide-number-tag';
+        tag.innerText = `Slide ${index + 1}`;
+        wrapper.appendChild(tag);
+
+        const box = document.createElement('div');
+        box.className = 'slide-box';
+        box.style.aspectRatio = `${slideRatio} / 1`;
+
+        const accent = document.createElement('div');
+        accent.className = 'accent-bar';
+        accent.style.display = styleMode === 'accent' ? 'block' : 'none';
+        box.appendChild(accent);
+
+        const hasContent = slide.title || slide.subtitle || slide.body.length;
+
+        if (!hasContent) {
+            const empty = document.createElement('div');
+            empty.className = 'slide-empty';
+            empty.innerText = '(No extractable text on this slide)';
+            box.appendChild(empty);
+        } else {
+            if (slide.title) {
+                const h = document.createElement('div');
+                h.className = 'slide-title';
+                h.innerText = slide.title;
+                box.appendChild(h);
+            }
+            if (slide.subtitle) {
+                const s = document.createElement('div');
+                s.className = 'slide-subtitle';
+                s.innerText = slide.subtitle;
+                box.appendChild(s);
+            }
+            if (slide.body.length) {
+                const bodyEl = document.createElement('div');
+                bodyEl.className = 'slide-body';
+                const ul = document.createElement('ul');
+                slide.body.forEach(line => {
+                    const li = document.createElement('li');
+                    li.innerText = line;
+                    ul.appendChild(li);
+                });
+                bodyEl.appendChild(ul);
+                box.appendChild(bodyEl);
+            }
+        }
+
+        const pageNum = document.createElement('div');
+        pageNum.className = 'slide-page-num';
+        pageNum.innerText = `${index + 1} / ${total}`;
+        pageNum.style.display = numbersMode === 'show' ? 'block' : 'none';
+        box.appendChild(pageNum);
+
+        wrapper.appendChild(box);
+        return wrapper;
+    }
+
+    // ── File load ─────────────────────────────────────────────────────────────
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith('.pptx')) {
+            alert('Only .pptx files are supported. Old .ppt format is not compatible.');
+            return;
+        }
+
+        originalFileName = file.name.replace(/\.pptx$/i, '');
+
+        document.getElementById('screen-start').style.display = 'none';
+        document.getElementById('screen-work').style.display  = 'flex';
+        document.getElementById('file-info').innerText        = file.name;
+        document.getElementById('progress-text').innerText    = 'Reading presentation…';
+        document.getElementById('preview-area').innerHTML     = '';
+
+        try {
+            const buf = await file.arrayBuffer();
+            const zip = await JSZip.loadAsync(buf);
+
+            // 1. Slide size + ratio
+            const presXmlStr = await zip.file('ppt/presentation.xml').async('string');
+            const presDoc    = parseXml(presXmlStr);
+            const sldSzEls   = presDoc.getElementsByTagName('p:sldSz');
+            if (sldSzEls.length) {
+                const cx = parseInt(sldSzEls[0].getAttribute('cx'));
+                const cy = parseInt(sldSzEls[0].getAttribute('cy'));
+                slideRatio    = cx / cy;
+                slideWidthMM  = cx / 36000;  // EMU -> mm
+                slideHeightMM = cy / 36000;
+            }
+
+            // 2. Slide order via sldIdLst + rels
+            const sldIdEls = presDoc.getElementsByTagName('p:sldId');
+            const rIds = [];
+            for (let i = 0; i < sldIdEls.length; i++) {
+                rIds.push(sldIdEls[i].getAttribute('r:id'));
+            }
+
+            const relsXmlStr = await zip.file('ppt/_rels/presentation.xml.rels').async('string');
+            const relsDoc    = parseXml(relsXmlStr);
+            const relEls     = relsDoc.getElementsByTagName('Relationship');
+            const relMap     = {};
+            for (let i = 0; i < relEls.length; i++) {
+                relMap[relEls[i].getAttribute('Id')] = relEls[i].getAttribute('Target');
+            }
+
+            const slidePaths = rIds
+                .map(rid => relMap[rid])
+                .filter(Boolean)
+                .map(target => 'ppt/' + target.replace(/^\.\.\//, ''));
+
+            // 3. Extract each slide's text
+            slidesData = [];
+            const previewArea = document.getElementById('preview-area');
+
+            for (let i = 0; i < slidePaths.length; i++) {
+                document.getElementById('progress-text').innerText = `Reading slide ${i + 1} of ${slidePaths.length}…`;
+                const slideFile = zip.file(slidePaths[i]);
+                if (!slideFile) { slidesData.push({ title:'', subtitle:'', body: [] }); continue; }
+
+                const slideXmlStr = await slideFile.async('string');
+                const slideDoc     = parseXml(slideXmlStr);
+                const slideData    = extractSlideText(slideDoc);
+                slidesData.push(slideData);
+            }
+
+            // 4. Render previews
+            slidesData.forEach((slide, i) => {
+                previewArea.appendChild(renderSlideCard(slide, i, slidesData.length));
+            });
+
+            document.getElementById('btn-convert').disabled = false;
+            document.getElementById('progress-text').innerText = '';
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('progress-text').innerText = 'Could not read the PowerPoint file.';
+        }
+    });
+
+    // ── Convert to PDF ────────────────────────────────────────────────────────
+    async function executeConvert() {
+        if (slidesData.length === 0) return;
+        const btn      = document.getElementById('btn-convert');
+        const progress = document.getElementById('progress-text');
+        btn.disabled   = true;
+        btn.innerHTML  = '<span class="spinner"></span> Generating PDF…';
+
+        // Build hidden container: one full-size slide div per slide
+        const container = document.createElement('div');
+        container.style.cssText = 'position:fixed;left:-9999px;top:0;';
+
+        const pxWidth  = 960; // render width in px, height computed from ratio
+        const pxHeight = Math.round(pxWidth / slideRatio);
+
+        slidesData.forEach((slide, i) => {
+            const slideDiv = document.createElement('div');
+            slideDiv.style.cssText = `
+                width:${pxWidth}px; height:${pxHeight}px; box-sizing:border-box;
+                position:relative; background:#fff; overflow:hidden;
+                font-family:Calibri, Arial, sans-serif;
+                display:flex; flex-direction:column; justify-content:center;
+                padding:${pxHeight * 0.07}px ${pxWidth * 0.09}px;
+                page-break-after:${i < slidesData.length - 1 ? 'always' : 'auto'};
+            `;
+
+            if (styleMode === 'accent') {
+                const bar = document.createElement('div');
+                bar.style.cssText = `position:absolute; top:0; left:0; right:0; height:${pxHeight * 0.06}px; background:linear-gradient(90deg,#D24726,#e8623a);`;
+                slideDiv.appendChild(bar);
+            }
+
+            const hasContent = slide.title || slide.subtitle || slide.body.length;
+
+            if (!hasContent) {
+                const empty = document.createElement('div');
+                empty.style.cssText = 'color:#c0c4ca; font-style:italic; text-align:center; font-size:22px;';
+                empty.innerText = '(No extractable text on this slide)';
+                slideDiv.appendChild(empty);
+            } else {
+                if (slide.title) {
+                    const h = document.createElement('div');
+                    h.style.cssText = 'font-size:40px; font-weight:700; color:#2d3436; margin-bottom:10px; line-height:1.15;';
+                    h.innerText = slide.title;
+                    slideDiv.appendChild(h);
+                }
+                if (slide.subtitle) {
+                    const s = document.createElement('div');
+                    s.style.cssText = 'font-size:22px; color:#8a8f96; margin-bottom:16px;';
+                    s.innerText = slide.subtitle;
+                    slideDiv.appendChild(s);
+                }
+                if (slide.body.length) {
+                    const ul = document.createElement('ul');
+                    ul.style.cssText = 'font-size:21px; color:#2d3436; margin:0; padding-left:28px;';
+                    slide.body.forEach(line => {
+                        const li = document.createElement('li');
+                        li.style.cssText = 'margin-bottom:8px; line-height:1.4;';
+                        li.innerText = line;
+                        ul.appendChild(li);
+                    });
+                    slideDiv.appendChild(ul);
+                }
+            }
+
+            if (numbersMode === 'show') {
+                const num = document.createElement('div');
+                num.style.cssText = `position:absolute; bottom:${pxHeight*0.04}px; right:${pxWidth*0.05}px; font-size:14px; color:#aab0bb; font-weight:600;`;
+                num.innerText = `${i + 1} / ${slidesData.length}`;
+                slideDiv.appendChild(num);
+            }
+
+            container.appendChild(slideDiv);
+        });
+
+        document.body.appendChild(container);
+
+        const opt = {
+            margin:      0,
+            filename:    (originalFileName || 'presentation') + '.pdf',
+            image:       { type: 'jpeg', quality: 0.97 },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', letterRendering: true },
+            jsPDF:       { unit: 'px', format: [pxWidth, pxHeight], orientation: 'landscape', compress: true },
+            pagebreak:   { mode: ['css', 'legacy'] }
+        };
+
+        try {
+            await html2pdf().set(opt).from(container).save();
+            progress.innerText = '✓ Done! Download started.';
+        } catch (err) {
+            console.error(err);
+            progress.innerText = 'Error generating the PDF. Please try again.';
+        } finally {
+            document.body.removeChild(container);
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;">
+                    <path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 3V8H19" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M10 12h6M10 16h4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Convert to PDF`;
+        }
+    }
+</script>
+</body>
+</html>
