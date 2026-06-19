@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF to Excel - Atlantino Tools</title>
+    <script>
+        if (!window.FileReader || !window.Blob || !window.Promise) {
+            alert("Your browser is outdated. Please update it to use Atlantino Tools.");
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* ===== GENERAL ===== */
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; line-height: 1.6; }
+
+        /* ===== HEADER ===== */
+        header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
+        .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
+        .nav-links { display: flex; align-items: center; }
+        .nav-links > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
+        .nav-links > a:hover { color: #d63031; }
+
+        /* ===== DROPDOWN ===== */
+        .nav-item { position: relative; margin-right: 15px; }
+        .nav-item > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; padding: 8px 0; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+        .nav-item:hover > a, .nav-item.open > a { color: #d63031; }
+        .nav-item .caret { font-size: 0.6rem; transition: transform 0.2s; }
+        .nav-item:hover .caret, .nav-item.open .caret { transform: rotate(180deg); }
+        .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); min-width: 200px; padding: 8px 0; z-index: 100; }
+        .nav-item:hover .dropdown-menu, .nav-item.open .dropdown-menu { display: block; }
+        .dropdown-menu a { display: flex; align-items: center; gap: 11px; padding: 10px 18px; color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap; margin-right: 0 !important; }
+        .dropdown-menu a:hover { background: #f4f7f9; color: #d63031; }
+        .dropdown-sep { height: 1px; background: #e2e8f0; margin: 6px 0; }
+        .dropdown-label { padding: 6px 18px 2px; font-size: 0.7rem; font-weight: 700; color: #a0aec0; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ===== OFFICE ICONS ===== */
+        .app-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; overflow: hidden; font-family: 'Arial Black', Arial, sans-serif; font-weight: 900; }
+        .app-icon .icon-letter { font-size: 15px; color: white; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); position: relative; z-index: 2; }
+        .app-icon .icon-badge { position: absolute; top: -1px; left: -1px; background: rgba(255,255,255,0.18); width: 13px; height: 13px; border-radius: 0 0 4px 0; }
+        .icon-word  { background: linear-gradient(135deg, #1e6fbb 0%, #185ABD 100%); }
+        .icon-jpg   { background: linear-gradient(135deg, #f0b429 0%, #d9961f 100%); }
+        .icon-excel { background: linear-gradient(135deg, #1a9e52 0%, #107C41 100%); }
+        .icon-pptx  { background: linear-gradient(135deg, #e8623a 0%, #D24726 100%); }
+        .icon-html  { background: linear-gradient(135deg, #e44d26 0%, #c0390f 100%); }
+        .icon-jpg-img { position: relative; overflow: hidden; }
+        .icon-jpg-img .sky   { position: absolute; top: 0; left: 0; right: 0; bottom: 40%; background: rgba(255,255,255,0.22); }
+        .icon-jpg-img .sun   { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.9); }
+        .icon-jpg-img .hills { position: absolute; bottom: 0; left: 0; right: 0; height: 14px; background: rgba(255,255,255,0.18); clip-path: polygon(0 100%, 30% 20%, 55% 70%, 75% 30%, 100% 60%, 100% 100%); }
+        .icon-with-badge { position: relative; }
+        .icon-with-badge .pdf-badge { position: absolute; bottom: -3px; right: -3px; background: #C0392B; color: white; font-size: 5.5px; font-family: Arial, sans-serif; font-weight: 900; padding: 1.5px 2.5px; border-radius: 2px; line-height: 1; letter-spacing: 0.2px; border: 1.5px solid #f4f7f9; }
+
+        /* ===== AD SPACE ===== */
+        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 30px; border: 1px dashed #cbd5e0; box-sizing: border-box; }
+
+        /* ===== SCREENS ===== */
+        .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
+
+        /* ===== SPREADSHEET PREVIEW ===== */
+        .preview-container {
+            flex: 1; max-width: 700px; max-height: 80vh; overflow: auto;
+            background: #d0d3d8; border-radius: 12px; padding: 28px 32px;
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+            scrollbar-width: thin; scrollbar-color: #aab0bb #d0d3d8;
+        }
+        .preview-container::-webkit-scrollbar { width: 7px; height: 7px; }
+        .preview-container::-webkit-scrollbar-track { background: #d0d3d8; border-radius: 10px; }
+        .preview-container::-webkit-scrollbar-thumb { background: #aab0bb; border-radius: 10px; }
+
+        .sheet-tabs { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; }
+        .sheet-tab { padding: 5px 14px; border-radius: 6px 6px 0 0; font-size: 0.78rem; font-weight: 700; cursor: pointer; border: none; background: #b0b5bc; color: white; transition: background 0.15s; }
+        .sheet-tab.active { background: #107C41; }
+        .sheet-tab:hover:not(.active) { background: #8a9099; }
+
+        .sheet-page {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 6px 24px rgba(0,0,0,0.10);
+            box-sizing: border-box;
+            width: 100%;
+            overflow-x: auto;
+            padding: 20px 24px;
+        }
+        .sheet-page table { border-collapse: collapse; font-family: 'Calibri', 'Inter', Arial, sans-serif; font-size: 12px; width: 100%; min-width: 400px; }
+        .sheet-page th { background: #107C41; color: white; font-weight: 700; padding: 6px 10px; border: 1px solid #0a5c30; text-align: left; white-space: nowrap; }
+        .sheet-page td { padding: 5px 10px; border: 1px solid #d0d7de; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; color: #2d3436; }
+        .sheet-page tr:nth-child(even) td { background: #f0faf4; }
+        .sheet-page tr:hover td { background: #e6f4ec; }
+        .sheet-page td.row-num, .sheet-page th.row-num { background: #e8f5ee; color: #636e72; font-weight: 600; text-align: center; min-width: 36px; font-size: 11px; }
+        .sheet-page th.row-num { background: #0a5c30; }
+        .sheet-empty { padding: 30px; text-align: center; color: #aab0bb; font-style: italic; }
+
+        /* ===== PANEL DERECHO ===== */
+        .split-panel { background: white; padding: 0; border-radius: 12px; width: 380px; flex-shrink: 0; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; align-self: flex-start; }
+        .panel-title { margin: 0; padding: 22px 25px 18px; text-align: center; font-size: 1.5rem; font-weight: 700; color: #2d3436; border-bottom: 1px solid #e2e8f0; }
+        .panel-subtitle { padding: 10px 25px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8a8f96; background: #fafafa; border-bottom: 1px solid #e2e8f0; }
+
+        .compress-option { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 15px 25px; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background 0.15s; }
+        .compress-option:hover { background: #f9f9fb; }
+        .compress-option.selected { background: #f0f0f5; }
+        .compress-option .option-text .option-label { display: block; color: #d63031; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px; }
+        .compress-option .option-text .option-desc { display: block; color: #636e72; font-size: 0.92rem; }
+        .check-circle { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #27ae60; color: white; display: none; align-items: center; justify-content: center; font-weight: bold; font-size: 0.95rem; }
+        .compress-option.selected .check-circle { display: flex; }
+
+        .panel-footer { padding: 22px; }
+        #file-info { margin-bottom: 18px; padding: 12px 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; text-align: center; font-size: 0.9rem; word-break: break-all; }
+        .info-note { padding: 12px 15px; background: #eaf4ff; border: 1px solid #cce5ff; border-radius: 6px; color: #004085; font-size: 0.82rem; line-height: 1.5; margin-bottom: 18px; }
+
+        .btn-main { background: #d63031; color: white; padding: 15px 20px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-main svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+        #progress-text { text-align: center; color: #636e72; font-weight: 600; margin-top: 12px; min-height: 1.2em; font-size: 0.9rem; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/" class="logo">Atlantino Tools</a>
+    <nav class="nav-links">
+        <a href="/merge">MERGE PDF</a>
+        <a href="/split">SPLIT PDF</a>
+        <a href="/compress">COMPRESS PDF</a>
+
+        <div class="nav-item" id="convert-dropdown">
+            <a href="javascript:void(0)">CONVERT PDF <span class="caret">&#9660;</span></a>
+            <div class="dropdown-menu">
+                <div class="dropdown-label">Convert to PDF</div>
+                <a href="/convert/word-to-pdf"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div>WORD TO PDF</a>
+                <a href="/convert/jpg-to-pdf"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div>JPG TO PDF</a>
+                <a href="/convert/excel-to-pdf"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div>EXCEL TO PDF</a>
+                <a href="/convert/powerpoint-to-pdf"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div>POWERPOINT TO PDF</a>
+                <a href="/convert/html-to-pdf"><div class="app-icon icon-html"><div class="icon-badge"></div><span class="icon-letter">&lt;/&gt;</span></div>HTML TO PDF</a>
+                <div class="dropdown-sep"></div>
+                <div class="dropdown-label">Convert from PDF</div>
+                <a href="/convert/pdf-to-word"><div class="icon-with-badge"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div><div class="pdf-badge">PDF</div></div>PDF TO WORD</a>
+                <a href="/convert/pdf-to-jpg"><div class="icon-with-badge"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div><div class="pdf-badge">PDF</div></div>PDF TO JPG</a>
+                <a href="/convert/pdf-to-excel"><div class="icon-with-badge"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div><div class="pdf-badge">PDF</div></div>PDF TO EXCEL</a>
+                <a href="/convert/pdf-to-powerpoint"><div class="icon-with-badge"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div><div class="pdf-badge">PDF</div></div>PDF TO POWERPOINT</a>
+            </div>
+        </div>
+
+        <a href="/rotate">ROTATE PDF</a>
+        <a href="/watermark">WATERMARK PDF</a>
+    </nav>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const item    = document.getElementById('convert-dropdown');
+        const trigger = item.querySelector(':scope > a');
+        trigger.addEventListener('click', e => { e.preventDefault(); item.classList.toggle('open'); });
+        document.addEventListener('click', e => { if (!item.contains(e.target)) item.classList.remove('open'); });
+    });
+</script>
+
+<div class="ad-space">AdSense Banner (728x90)</div>
+
+<!-- START -->
+<div id="screen-start" class="screen" style="display:flex; align-items:center; justify-content:center;">
+    <div style="text-align:center;">
+        <h1>PDF to Excel</h1>
+        <p style="color:#636e72; margin-bottom:30px;">Extract tables and text from your PDF into an editable spreadsheet.</p>
+        <button class="btn-main" style="width:auto; padding:15px 40px; font-size:1.05rem; margin:0 auto;" onclick="document.getElementById('file-input').click()">
+            <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;">
+                <path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M14 3V8H19" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            Select PDF file
+        </button>
+        <p style="color:#aab0bb; font-size:0.85rem; margin-top:15px;">Works best with text-based PDFs containing tables</p>
+        <a href="/" style="margin-top:15px; display:inline-block; color:#718096; text-decoration:none; font-size:0.9rem;">← Back to homepage</a>
+    </div>
+</div>
+
+<!-- WORK -->
+<div id="screen-work" class="screen">
+    <div id="preview-area" class="preview-container">
+        <div class="sheet-tabs" id="sheet-tabs"></div>
+        <div class="sheet-page" id="sheet-page"></div>
+    </div>
+
+    <div class="split-panel">
+        <h2 class="panel-title">Convert to Excel</h2>
+
+        <div class="panel-subtitle">Sheets</div>
+        <div class="compress-option selected" data-sheets="per-page" onclick="selectSheetsMode('per-page')">
+            <div class="option-text">
+                <span class="option-label">One sheet per page</span>
+                <span class="option-desc">Each PDF page becomes its own tab</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-sheets="combined" onclick="selectSheetsMode('combined')">
+            <div class="option-text">
+                <span class="option-label">Combine into one sheet</span>
+                <span class="option-desc">All pages stacked, separated by a label row</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-subtitle">Column detection</div>
+        <div class="compress-option selected" data-gap="normal" onclick="selectGapMode('normal')">
+            <div class="option-text">
+                <span class="option-label">Standard tables</span>
+                <span class="option-desc">Normal spacing between columns</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-gap="wide" onclick="selectGapMode('wide')">
+            <div class="option-text">
+                <span class="option-label">Wide-spaced columns</span>
+                <span class="option-desc">For forms or sparse layouts</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-footer">
+            <div class="info-note">
+                Column detection is based on text spacing and works best with clean, simple tables. Complex or merged-cell tables may not align perfectly — review the result before using it.
+            </div>
+            <div id="file-info">No file selected</div>
+            <button class="btn-main" id="btn-convert" onclick="executeConvert()" disabled>
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 4h10l4 4v14H4V4z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 4v4h4" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M8 13h8M8 17h8M8 9h4" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+                Convert to Excel
+            </button>
+            <div id="progress-text"></div>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="file-input" accept="application/pdf" style="display:none;">
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
+
+    let loadedPdfBytes   = null;
+    let pagesTables      = [];   // pagesTables[pageIdx] = array of arrays (rows of columns)
+    let originalFileName = '';
+    let sheetsMode        = 'per-page';
+    let gapMode            = 'normal';
+    let activeSheetIdx    = 0;
+
+    function selectSheetsMode(m) {
+        sheetsMode = m;
+        document.querySelectorAll('.compress-option[data-sheets]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.sheets === m));
+    }
+
+    function selectGapMode(m) {
+        gapMode = m;
+        document.querySelectorAll('.compress-option[data-gap]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.gap === m));
+        // Re-run extraction with new sensitivity if a file is already loaded
+        if (loadedPdfBytes) reExtractAndPreview();
+    }
+
+    function colName(idx) {
+        let name = '';
+        idx++;
+        while (idx > 0) {
+            name = String.fromCharCode(((idx - 1) % 26) + 65) + name;
+            idx  = Math.floor((idx - 1) / 26);
+        }
+        return name;
+    }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── Group text items into lines (by Y) ──────────────────────────────────────
+    function groupIntoLines(items) {
+        items = items.slice().sort((a, b) => b.y - a.y || a.x - b.x);
+        const lines = [];
+        let currentLine = [];
+        let lastY = null;
+        const Y_TOLERANCE = 3;
+
+        items.forEach(it => {
+            if (lastY === null || Math.abs(it.y - lastY) <= Y_TOLERANCE) {
+                currentLine.push(it);
+            } else {
+                lines.push(currentLine);
+                currentLine = [it];
+            }
+            lastY = it.y;
+        });
+        if (currentLine.length) lines.push(currentLine);
+        return lines;
+    }
+
+    // ── Cluster a line's items into columns based on X gaps ─────────────────────
+    function lineToColumns(line, gapMultiplier) {
+        const sorted = line.slice().sort((a, b) => a.x - b.x);
+        const avgCharWidth = sorted.reduce((sum, it) =>
+            sum + (it.width / Math.max(it.text.length, 1)), 0) / sorted.length;
+        const threshold = Math.max(10, avgCharWidth * gapMultiplier);
+
+        const cols = [];
+        let currentCol = [sorted[0].text];
+        let lastEndX = sorted[0].x + sorted[0].width;
+
+        for (let i = 1; i < sorted.length; i++) {
+            const gap = sorted[i].x - lastEndX;
+            if (gap > threshold) {
+                cols.push(currentCol.join(' ').trim());
+                currentCol = [sorted[i].text];
+            } else {
+                currentCol.push(sorted[i].text);
+            }
+            lastEndX = sorted[i].x + sorted[i].width;
+        }
+        cols.push(currentCol.join(' ').trim());
+        return cols;
+    }
+
+    // ── Extract a page's text into a 2D table (array of row arrays) ─────────────
+    async function extractPageTable(page, gapMultiplier) {
+        const content = await page.getTextContent();
+        if (content.items.length === 0) return [];
+
+        const items = content.items
+            .filter(it => it.str.trim() !== '')
+            .map(it => ({
+                text:  it.str,
+                x:     it.transform[4],
+                y:     it.transform[5],
+                width: it.width || (it.str.length * 5)
+            }));
+
+        if (items.length === 0) return [];
+
+        const lines = groupIntoLines(items);
+        return lines.map(line => lineToColumns(line, gapMultiplier));
+    }
+
+    // ── Render sheet preview (table) ─────────────────────────────────────────────
+    function renderSheetPreview(idx) {
+        activeSheetIdx = idx;
+        document.querySelectorAll('.sheet-tab').forEach((t, i) =>
+            t.classList.toggle('active', i === idx));
+
+        const table = pagesTables[idx];
+        const sheetPageEl = document.getElementById('sheet-page');
+
+        if (!table || table.length === 0) {
+            sheetPageEl.innerHTML = '<div class="sheet-empty">No extractable text on this page (it may be a scanned image).</div>';
+            return;
+        }
+
+        const cols = table.reduce((max, row) => Math.max(max, row.length), 0);
+        let html = '<table><thead><tr><th class="row-num">#</th>';
+        for (let c = 0; c < cols; c++) html += `<th>${colName(c)}</th>`;
+        html += '</tr></thead><tbody>';
+
+        table.forEach((row, r) => {
+            html += `<tr><td class="row-num">${r + 1}</td>`;
+            for (let c = 0; c < cols; c++) {
+                const val = row[c] !== undefined ? row[c] : '';
+                html += `<td title="${escHtml(val)}">${escHtml(val)}</td>`;
+            }
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        sheetPageEl.innerHTML = html;
+    }
+
+    // ── (Re)extract all pages and rebuild preview ────────────────────────────────
+    async function reExtractAndPreview() {
+        document.getElementById('progress-text').innerText = 'Re-analyzing columns…';
+        document.getElementById('btn-convert').disabled = true;
+
+        const gapMultiplier = gapMode === 'wide' ? 4 : 2;
+        const previewCopy = loadedPdfBytes.slice(0);
+        const pdf = await pdfjsLib.getDocument({ data: previewCopy }).promise;
+        const numPages = pdf.numPages;
+
+        pagesTables = [];
+        for (let i = 1; i <= numPages; i++) {
+            const page  = await pdf.getPage(i);
+            const table = await extractPageTable(page, gapMultiplier);
+            pagesTables.push(table);
+        }
+
+        // Build tabs
+        const tabsEl = document.getElementById('sheet-tabs');
+        tabsEl.innerHTML = '';
+        pagesTables.forEach((_, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'sheet-tab' + (i === 0 ? ' active' : '');
+            btn.innerText = `Page ${i + 1}`;
+            btn.onclick   = () => renderSheetPreview(i);
+            tabsEl.appendChild(btn);
+        });
+
+        renderSheetPreview(0);
+        document.getElementById('btn-convert').disabled = false;
+        document.getElementById('progress-text').innerText = '';
+    }
+
+    // ── File load ─────────────────────────────────────────────────────────────
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        originalFileName = file.name.replace(/\.pdf$/i, '');
+        loadedPdfBytes    = await file.arrayBuffer();
+
+        document.getElementById('screen-start').style.display = 'none';
+        document.getElementById('screen-work').style.display  = 'flex';
+        document.getElementById('file-info').innerText        = file.name;
+
+        try {
+            await reExtractAndPreview();
+        } catch (err) {
+            console.error(err);
+            document.getElementById('progress-text').innerText = 'Could not read the PDF.';
+        }
+    });
+
+    // ── Build and download .xlsx ─────────────────────────────────────────────────
+    async function executeConvert() {
+        if (pagesTables.length === 0) return;
+        const btn      = document.getElementById('btn-convert');
+        const progress = document.getElementById('progress-text');
+        btn.disabled   = true;
+        btn.innerHTML  = '<span class="spinner"></span> Building Excel file…';
+
+        try {
+            const wb = XLSX.utils.book_new();
+
+            if (sheetsMode === 'per-page') {
+                pagesTables.forEach((table, i) => {
+                    const data = table.length ? table : [['(No extractable text on this page)']];
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    XLSX.utils.book_append_sheet(wb, ws, `Page ${i + 1}`.substring(0, 31));
+                });
+            } else {
+                let combined = [];
+                pagesTables.forEach((table, i) => {
+                    combined.push([`— Page ${i + 1} —`]);
+                    if (table.length) {
+                        combined = combined.concat(table);
+                    } else {
+                        combined.push(['(No extractable text on this page)']);
+                    }
+                    combined.push([]); // blank separator row
+                });
+                const ws = XLSX.utils.aoa_to_sheet(combined);
+                XLSX.utils.book_append_sheet(wb, ws, 'All Pages');
+            }
+
+            XLSX.writeFile(wb, (originalFileName || 'document') + '.xlsx');
+            progress.innerText = '✓ Done! Download started.';
+        } catch (err) {
+            console.error(err);
+            progress.innerText = 'Error building the Excel file. Please try again.';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;">
+                    <path d="M4 4h10l4 4v14H4V4z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 4v4h4" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M8 13h8M8 17h8M8 9h4" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+                Convert to Excel`;
+        }
+    }
+</script>
+</body>
+</html>
