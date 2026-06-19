@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF to Word - Atlantino Tools</title>
+    <script>
+        if (!window.FileReader || !window.Blob || !window.Promise) {
+            alert("Your browser is outdated. Please update it to use Atlantino Tools.");
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        /* ===== GENERAL ===== */
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; line-height: 1.6; }
+
+        /* ===== HEADER ===== */
+        header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
+        .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
+        .nav-links { display: flex; align-items: center; }
+        .nav-links > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
+        .nav-links > a:hover { color: #d63031; }
+
+        /* ===== DROPDOWN ===== */
+        .nav-item { position: relative; margin-right: 15px; }
+        .nav-item > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; padding: 8px 0; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+        .nav-item:hover > a, .nav-item.open > a { color: #d63031; }
+        .nav-item .caret { font-size: 0.6rem; transition: transform 0.2s; }
+        .nav-item:hover .caret, .nav-item.open .caret { transform: rotate(180deg); }
+        .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); min-width: 200px; padding: 8px 0; z-index: 100; }
+        .nav-item:hover .dropdown-menu, .nav-item.open .dropdown-menu { display: block; }
+        .dropdown-menu a { display: flex; align-items: center; gap: 11px; padding: 10px 18px; color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap; margin-right: 0 !important; }
+        .dropdown-menu a:hover { background: #f4f7f9; color: #d63031; }
+        .dropdown-sep { height: 1px; background: #e2e8f0; margin: 6px 0; }
+        .dropdown-label { padding: 6px 18px 2px; font-size: 0.7rem; font-weight: 700; color: #a0aec0; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ===== OFFICE ICONS ===== */
+        .app-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; overflow: hidden; font-family: 'Arial Black', Arial, sans-serif; font-weight: 900; }
+        .app-icon .icon-letter { font-size: 15px; color: white; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); position: relative; z-index: 2; }
+        .app-icon .icon-badge { position: absolute; top: -1px; left: -1px; background: rgba(255,255,255,0.18); width: 13px; height: 13px; border-radius: 0 0 4px 0; }
+        .icon-word  { background: linear-gradient(135deg, #1e6fbb 0%, #185ABD 100%); }
+        .icon-jpg   { background: linear-gradient(135deg, #f0b429 0%, #d9961f 100%); }
+        .icon-excel { background: linear-gradient(135deg, #1a9e52 0%, #107C41 100%); }
+        .icon-pptx  { background: linear-gradient(135deg, #e8623a 0%, #D24726 100%); }
+        .icon-html  { background: linear-gradient(135deg, #e44d26 0%, #c0390f 100%); }
+        .icon-jpg-img { position: relative; overflow: hidden; }
+        .icon-jpg-img .sky   { position: absolute; top: 0; left: 0; right: 0; bottom: 40%; background: rgba(255,255,255,0.22); }
+        .icon-jpg-img .sun   { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.9); }
+        .icon-jpg-img .hills { position: absolute; bottom: 0; left: 0; right: 0; height: 14px; background: rgba(255,255,255,0.18); clip-path: polygon(0 100%, 30% 20%, 55% 70%, 75% 30%, 100% 60%, 100% 100%); }
+        .icon-with-badge { position: relative; }
+        .icon-with-badge .pdf-badge { position: absolute; bottom: -3px; right: -3px; background: #C0392B; color: white; font-size: 5.5px; font-family: Arial, sans-serif; font-weight: 900; padding: 1.5px 2.5px; border-radius: 2px; line-height: 1; letter-spacing: 0.2px; border: 1.5px solid #f4f7f9; }
+
+        /* ===== AD SPACE ===== */
+        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 30px; border: 1px dashed #cbd5e0; box-sizing: border-box; }
+
+        /* ===== SCREENS ===== */
+        .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
+
+        /* ===== DOCUMENT PREVIEW ===== */
+        .preview-container {
+            flex: 1; max-width: 700px; max-height: 80vh; overflow-y: auto;
+            background: #d0d3d8; border-radius: 12px; padding: 32px 40px;
+            display: flex; flex-direction: column; align-items: center; gap: 18px;
+            scrollbar-width: thin; scrollbar-color: #aab0bb #d0d3d8;
+        }
+        .preview-container::-webkit-scrollbar { width: 7px; }
+        .preview-container::-webkit-scrollbar-track { background: #d0d3d8; border-radius: 10px; }
+        .preview-container::-webkit-scrollbar-thumb { background: #aab0bb; border-radius: 10px; }
+
+        .doc-page {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 6px 24px rgba(0,0,0,0.10);
+            box-sizing: border-box;
+            width: 100%; max-width: 480px;
+            padding: 44px 50px;
+            font-family: 'Calibri', 'Carlito', 'Segoe UI', Arial, sans-serif;
+            font-size: 13.5px;
+            line-height: 1.55;
+            color: #000;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            position: relative;
+        }
+        .doc-page p { margin: 0 0 0.6em; white-space: pre-wrap; }
+        .doc-page p:last-child { margin-bottom: 0; }
+        .doc-page p:empty { height: 0.6em; margin: 0; }
+        .page-tag {
+            position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+            background: #2d3436; color: white; font-size: 0.68rem; font-weight: 700;
+            padding: 3px 10px; border-radius: 10px; letter-spacing: 0.5px;
+        }
+        .doc-page.empty-page { color: #aab0bb; font-style: italic; text-align: center; padding-top: 80px; }
+
+        /* ===== PANEL DERECHO ===== */
+        .split-panel { background: white; padding: 0; border-radius: 12px; width: 380px; flex-shrink: 0; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; align-self: flex-start; }
+        .panel-title { margin: 0; padding: 22px 25px 18px; text-align: center; font-size: 1.5rem; font-weight: 700; color: #2d3436; border-bottom: 1px solid #e2e8f0; }
+        .panel-subtitle { padding: 10px 25px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8a8f96; background: #fafafa; border-bottom: 1px solid #e2e8f0; }
+
+        .compress-option { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 15px 25px; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background 0.15s; }
+        .compress-option:hover { background: #f9f9fb; }
+        .compress-option.selected { background: #f0f0f5; }
+        .compress-option .option-text .option-label { display: block; color: #d63031; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px; }
+        .compress-option .option-text .option-desc { display: block; color: #636e72; font-size: 0.92rem; }
+        .check-circle { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #27ae60; color: white; display: none; align-items: center; justify-content: center; font-weight: bold; font-size: 0.95rem; }
+        .compress-option.selected .check-circle { display: flex; }
+
+        .panel-footer { padding: 22px; }
+        #file-info { margin-bottom: 18px; padding: 12px 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; text-align: center; font-size: 0.9rem; word-break: break-all; }
+        .info-note { padding: 12px 15px; background: #eaf4ff; border: 1px solid #cce5ff; border-radius: 6px; color: #004085; font-size: 0.82rem; line-height: 1.5; margin-bottom: 18px; }
+
+        .btn-main { background: #d63031; color: white; padding: 15px 20px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-main svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+        #progress-text { text-align: center; color: #636e72; font-weight: 600; margin-top: 12px; min-height: 1.2em; font-size: 0.9rem; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/" class="logo">Atlantino Tools</a>
+    <nav class="nav-links">
+        <a href="/merge">MERGE PDF</a>
+        <a href="/split">SPLIT PDF</a>
+        <a href="/compress">COMPRESS PDF</a>
+
+        <div class="nav-item" id="convert-dropdown">
+            <a href="javascript:void(0)">CONVERT PDF <span class="caret">&#9660;</span></a>
+            <div class="dropdown-menu">
+                <div class="dropdown-label">Convert to PDF</div>
+                <a href="/convert/word-to-pdf"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div>WORD TO PDF</a>
+                <a href="/convert/jpg-to-pdf"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div>JPG TO PDF</a>
+                <a href="/convert/excel-to-pdf"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div>EXCEL TO PDF</a>
+                <a href="/convert/powerpoint-to-pdf"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div>POWERPOINT TO PDF</a>
+                <a href="/convert/html-to-pdf"><div class="app-icon icon-html"><div class="icon-badge"></div><span class="icon-letter">&lt;/&gt;</span></div>HTML TO PDF</a>
+                <div class="dropdown-sep"></div>
+                <div class="dropdown-label">Convert from PDF</div>
+                <a href="/convert/pdf-to-word"><div class="icon-with-badge"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div><div class="pdf-badge">PDF</div></div>PDF TO WORD</a>
+                <a href="/convert/pdf-to-jpg"><div class="icon-with-badge"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div><div class="pdf-badge">PDF</div></div>PDF TO JPG</a>
+                <a href="/convert/pdf-to-excel"><div class="icon-with-badge"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div><div class="pdf-badge">PDF</div></div>PDF TO EXCEL</a>
+                <a href="/convert/pdf-to-powerpoint"><div class="icon-with-badge"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div><div class="pdf-badge">PDF</div></div>PDF TO POWERPOINT</a>
+            </div>
+        </div>
+
+        <a href="/rotate">ROTATE PDF</a>
+        <a href="/watermark">WATERMARK PDF</a>
+    </nav>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const item    = document.getElementById('convert-dropdown');
+        const trigger = item.querySelector(':scope > a');
+        trigger.addEventListener('click', e => { e.preventDefault(); item.classList.toggle('open'); });
+        document.addEventListener('click', e => { if (!item.contains(e.target)) item.classList.remove('open'); });
+    });
+</script>
+
+<div class="ad-space">AdSense Banner (728x90)</div>
+
+<!-- START -->
+<div id="screen-start" class="screen" style="display:flex; align-items:center; justify-content:center;">
+    <div style="text-align:center;">
+        <h1>PDF to Word</h1>
+        <p style="color:#636e72; margin-bottom:30px;">Extract the text from your PDF into an editable .docx file.</p>
+        <button class="btn-main" style="width:auto; padding:15px 40px; font-size:1.05rem; margin:0 auto;" onclick="document.getElementById('file-input').click()">
+            <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;">
+                <path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M14 3V8H19" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            Select PDF file
+        </button>
+        <p style="color:#aab0bb; font-size:0.85rem; margin-top:15px;">Works best with text-based PDFs (not scanned images)</p>
+        <a href="/" style="margin-top:15px; display:inline-block; color:#718096; text-decoration:none; font-size:0.9rem;">← Back to homepage</a>
+    </div>
+</div>
+
+<!-- WORK -->
+<div id="screen-work" class="screen">
+    <div id="preview-area" class="preview-container"></div>
+
+    <div class="split-panel">
+        <h2 class="panel-title">Convert to Word</h2>
+
+        <div class="panel-subtitle">Layout</div>
+        <div class="compress-option selected" data-breaks="keep" onclick="selectBreaks('keep')">
+            <div class="option-text">
+                <span class="option-label">Keep page breaks</span>
+                <span class="option-desc">One Word page per PDF page</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-breaks="flow" onclick="selectBreaks('flow')">
+            <div class="option-text">
+                <span class="option-label">Continuous text</span>
+                <span class="option-desc">Merge all pages into one flow</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-footer">
+            <div class="info-note">
+                This tool extracts <strong>text only</strong>. Images, exact fonts and complex layouts are not preserved — ideal for editing the wording of a document.
+            </div>
+            <div id="file-info">No file selected</div>
+            <button class="btn-main" id="btn-convert" onclick="executeConvert()" disabled>
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 4h10l4 4v14H4V4z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 4v4h4" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M8 14l1.5 4 2-3 2 3L15 14" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+                Convert to Word
+            </button>
+            <div id="progress-text"></div>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="file-input" accept="application/pdf" style="display:none;">
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
+
+    let loadedPdfBytes   = null;
+    let pagesParagraphs  = [];   // array of arrays: pagesParagraphs[pageIdx] = [line1, line2, ...]
+    let originalFileName = '';
+    let breakMode        = 'keep';
+
+    function selectBreaks(mode) {
+        breakMode = mode;
+        document.querySelectorAll('.compress-option[data-breaks]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.breaks === mode));
+    }
+
+    // ── Extract text lines from a PDF page using y-position clustering ─────────
+    async function extractPageLines(page) {
+        const content = await page.getTextContent();
+        if (content.items.length === 0) return [];
+
+        // Group items into lines based on similar Y position
+        const items = content.items.map(it => ({
+            text: it.str,
+            x:    it.transform[4],
+            y:    it.transform[5]
+        }));
+
+        items.sort((a, b) => b.y - a.y || a.x - b.x); // top-to-bottom, then left-to-right
+
+        const lines = [];
+        let currentLine = [];
+        let lastY = null;
+        const Y_TOLERANCE = 3;
+
+        items.forEach(it => {
+            if (lastY === null || Math.abs(it.y - lastY) <= Y_TOLERANCE) {
+                currentLine.push(it);
+            } else {
+                lines.push(currentLine);
+                currentLine = [it];
+            }
+            lastY = it.y;
+        });
+        if (currentLine.length) lines.push(currentLine);
+
+        // Build text per line, re-sorted left-to-right
+        return lines.map(line => {
+            line.sort((a, b) => a.x - b.x);
+            return line.map(i => i.text).join(' ').replace(/\s+/g, ' ').trim();
+        }).filter(l => l.length > 0);
+    }
+
+    // ── File load ─────────────────────────────────────────────────────────────
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        originalFileName = file.name.replace(/\.pdf$/i, '');
+        loadedPdfBytes    = await file.arrayBuffer();
+
+        document.getElementById('screen-start').style.display = 'none';
+        document.getElementById('screen-work').style.display  = 'flex';
+        document.getElementById('file-info').innerText        = file.name;
+        document.getElementById('progress-text').innerText    = 'Extracting text…';
+        document.getElementById('preview-area').innerHTML     = '';
+
+        try {
+            const previewCopy = loadedPdfBytes.slice(0);
+            const pdf = await pdfjsLib.getDocument({ data: previewCopy }).promise;
+            const numPages = pdf.numPages;
+
+            pagesParagraphs = [];
+            const previewArea = document.getElementById('preview-area');
+
+            for (let i = 1; i <= numPages; i++) {
+                document.getElementById('progress-text').innerText = `Extracting text from page ${i} of ${numPages}…`;
+
+                const page  = await pdf.getPage(i);
+                const lines = await extractPageLines(page);
+                pagesParagraphs.push(lines);
+
+                // Build preview card
+                const card = document.createElement('div');
+                card.className = 'doc-page' + (lines.length === 0 ? ' empty-page' : '');
+                card.style.position = 'relative';
+
+                const tag = document.createElement('div');
+                tag.className = 'page-tag';
+                tag.innerText = `Page ${i}`;
+                card.appendChild(tag);
+
+                if (lines.length === 0) {
+                    const p = document.createElement('p');
+                    p.innerText = '(No extractable text — this page may be a scanned image)';
+                    card.appendChild(p);
+                } else {
+                    lines.forEach(line => {
+                        const p = document.createElement('p');
+                        p.innerText = line;
+                        card.appendChild(p);
+                    });
+                }
+
+                previewArea.appendChild(card);
+            }
+
+            document.getElementById('btn-convert').disabled = false;
+            document.getElementById('progress-text').innerText = '';
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('progress-text').innerText = 'Could not read the PDF. Make sure it is a valid file.';
+        }
+    });
+
+    // ── XML escape helper ────────────────────────────────────────────────────
+    function escXml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                 .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+    }
+
+    // ── Build a minimal valid .docx (OpenXML) using JSZip ───────────────────────
+    async function buildDocx(pages, keepBreaks) {
+        const zip = new JSZip();
+
+        zip.file('[Content_Types].xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+</Types>`);
+
+        zip.file('_rels/.rels',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+</Relationships>`);
+
+        zip.file('docProps/core.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <dc:creator>Atlantino Tools</dc:creator>
+  <dc:title>${escXml(originalFileName)}</dc:title>
+</cp:coreProperties>`);
+
+        zip.file('word/_rels/document.xml.rels',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`);
+
+        zip.file('word/styles.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="259" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
+</w:styles>`);
+
+        // Build body paragraphs
+        let bodyXml = '';
+        pages.forEach((lines, pageIdx) => {
+            if (lines.length === 0) {
+                bodyXml += `<w:p><w:r><w:rPr><w:i/><w:color w:val="999999"/></w:rPr><w:t xml:space="preserve">(No extractable text on this page)</w:t></w:r></w:p>`;
+            } else {
+                lines.forEach(line => {
+                    bodyXml += `<w:p><w:r><w:t xml:space="preserve">${escXml(line)}</w:t></w:r></w:p>`;
+                });
+            }
+
+            // Page break between pages (only if "keep" mode and not the last page)
+            if (keepBreaks && pageIdx < pages.length - 1) {
+                bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+            } else if (!keepBreaks && pageIdx < pages.length - 1) {
+                bodyXml += `<w:p/>`; // just a blank line between pages in continuous mode
+            }
+        });
+
+        const documentXml =
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${bodyXml}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1417" w:right="1417" w:bottom="1417" w:left="1417" w:header="708" w:footer="708" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+        zip.file('word/document.xml', documentXml);
+
+        return zip.generateAsync({
+            type: 'blob',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+    }
+
+    // ── Convert ───────────────────────────────────────────────────────────────
+    async function executeConvert() {
+        if (pagesParagraphs.length === 0) return;
+        const btn      = document.getElementById('btn-convert');
+        const progress = document.getElementById('progress-text');
+        btn.disabled   = true;
+        btn.innerHTML  = '<span class="spinner"></span> Building Word file…';
+
+        try {
+            const blob = await buildDocx(pagesParagraphs, breakMode === 'keep');
+            const a    = document.createElement('a');
+            a.href     = URL.createObjectURL(blob);
+            a.download = (originalFileName || 'document') + '.docx';
+            a.click();
+            URL.revokeObjectURL(a.href);
+            progress.innerText = '✓ Done! Download started.';
+        } catch (err) {
+            console.error(err);
+            progress.innerText = 'Error building the Word file. Please try again.';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;">
+                    <path d="M4 4h10l4 4v14H4V4z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 4v4h4" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M8 14l1.5 4 2-3 2 3L15 14" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+                Convert to Word`;
+        }
+    }
+</script>
+</body>
+</html>
