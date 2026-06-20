@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/png" href="../../favicon.png?v=latest">
+
+    <meta charset="UTF-8">
+    <title>PDF to PowerPoint - Atlantino Tools</title>
+    <script>
+        if (!window.FileReader || !window.Blob || !window.Promise) {
+            alert("Your browser is outdated. Please update it to use Atlantino Tools.");
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        /* ===== GENERAL ===== */
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; line-height: 1.6; }
+
+        /* ===== HEADER ===== */
+        header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
+        .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
+        .nav-links { display: flex; align-items: center; }
+        .nav-links > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
+        .nav-links > a:hover { color: #d63031; }
+
+        /* ===== DROPDOWN ===== */
+        .nav-item { position: relative; margin-right: 15px; }
+        .nav-item > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; padding: 8px 0; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+        .nav-item:hover > a, .nav-item.open > a { color: #d63031; }
+        .nav-item .caret { font-size: 0.6rem; transition: transform 0.2s; }
+        .nav-item:hover .caret, .nav-item.open .caret { transform: rotate(180deg); }
+        .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); min-width: 200px; padding: 8px 0; z-index: 100; }
+        .nav-item:hover .dropdown-menu, .nav-item.open .dropdown-menu { display: block; }
+        .dropdown-menu a { display: flex; align-items: center; gap: 11px; padding: 10px 18px; color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap; margin-right: 0 !important; }
+        .dropdown-menu a:hover { background: #f4f7f9; color: #d63031; }
+        .dropdown-sep { height: 1px; background: #e2e8f0; margin: 6px 0; }
+        .dropdown-label { padding: 6px 18px 2px; font-size: 0.7rem; font-weight: 700; color: #a0aec0; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ===== OFFICE ICONS ===== */
+        .app-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; overflow: hidden; font-family: 'Arial Black', Arial, sans-serif; font-weight: 900; }
+        .app-icon .icon-letter { font-size: 15px; color: white; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); position: relative; z-index: 2; }
+        .app-icon .icon-badge { position: absolute; top: -1px; left: -1px; background: rgba(255,255,255,0.18); width: 13px; height: 13px; border-radius: 0 0 4px 0; }
+        .icon-word  { background: linear-gradient(135deg, #1e6fbb 0%, #185ABD 100%); }
+        .icon-jpg   { background: linear-gradient(135deg, #f0b429 0%, #d9961f 100%); }
+        .icon-excel { background: linear-gradient(135deg, #1a9e52 0%, #107C41 100%); }
+        .icon-pptx  { background: linear-gradient(135deg, #e8623a 0%, #D24726 100%); }
+        .icon-html  { background: linear-gradient(135deg, #e44d26 0%, #c0390f 100%); }
+        .icon-jpg-img { position: relative; overflow: hidden; }
+        .icon-jpg-img .sky   { position: absolute; top: 0; left: 0; right: 0; bottom: 40%; background: rgba(255,255,255,0.22); }
+        .icon-jpg-img .sun   { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.9); }
+        .icon-jpg-img .hills { position: absolute; bottom: 0; left: 0; right: 0; height: 14px; background: rgba(255,255,255,0.18); clip-path: polygon(0 100%, 30% 20%, 55% 70%, 75% 30%, 100% 60%, 100% 100%); }
+        .icon-with-badge { position: relative; }
+        .icon-with-badge .pdf-badge { position: absolute; bottom: -3px; right: -3px; background: #C0392B; color: white; font-size: 5.5px; font-family: Arial, sans-serif; font-weight: 900; padding: 1.5px 2.5px; border-radius: 2px; line-height: 1; letter-spacing: 0.2px; border: 1.5px solid #f4f7f9; }
+
+        /* ===== AD SPACE ===== */
+        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 30px; border: 1px dashed #cbd5e0; box-sizing: border-box; }
+
+        /* ===== SCREENS ===== */
+        .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
+
+        /* ===== SLIDE PREVIEW ===== */
+        .preview-container {
+            flex: 1; max-width: 700px; max-height: 80vh; overflow-y: auto;
+            background: #d0d3d8; border-radius: 12px; padding: 28px 32px;
+            display: flex; flex-direction: column; align-items: center; gap: 22px;
+            scrollbar-width: thin; scrollbar-color: #aab0bb #d0d3d8;
+        }
+        .preview-container::-webkit-scrollbar { width: 7px; }
+        .preview-container::-webkit-scrollbar-track { background: #d0d3d8; border-radius: 10px; }
+        .preview-container::-webkit-scrollbar-thumb { background: #aab0bb; border-radius: 10px; }
+
+        .slide-card { position: relative; width: 100%; }
+        .slide-number-tag {
+            position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+            background: #2d3436; color: white; font-size: 0.68rem; font-weight: 700;
+            padding: 3px 10px; border-radius: 10px; letter-spacing: 0.5px; z-index: 2;
+        }
+        .slide-box {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 6px 24px rgba(0,0,0,0.10);
+            box-sizing: border-box;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 7% 9%;
+            font-family: 'Calibri', 'Carlito', Arial, sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+        .slide-box .accent-bar { position: absolute; top: 0; left: 0; right: 0; height: 6%; background: linear-gradient(90deg, #D24726, #e8623a); }
+        .slide-title { font-size: 1.7rem; font-weight: 700; color: #2d3436; margin: 0 0 0.3em; line-height: 1.15; }
+        .slide-body { font-size: 0.95rem; color: #2d3436; }
+        .slide-body ul { margin: 0; padding-left: 1.2em; }
+        .slide-body li { margin-bottom: 0.35em; line-height: 1.35; }
+        .slide-empty { color: #c0c4ca; font-style: italic; text-align: center; font-size: 1rem; }
+
+        /* ===== PANEL DERECHO ===== */
+        .split-panel { background: white; padding: 0; border-radius: 12px; width: 380px; flex-shrink: 0; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; align-self: flex-start; }
+        .panel-title { margin: 0; padding: 22px 25px 18px; text-align: center; font-size: 1.5rem; font-weight: 700; color: #2d3436; border-bottom: 1px solid #e2e8f0; }
+        .panel-subtitle { padding: 10px 25px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8a8f96; background: #fafafa; border-bottom: 1px solid #e2e8f0; }
+
+        .compress-option { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 15px 25px; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background 0.15s; }
+        .compress-option:hover { background: #f9f9fb; }
+        .compress-option.selected { background: #f0f0f5; }
+        .compress-option .option-text .option-label { display: block; color: #d63031; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px; }
+        .compress-option .option-text .option-desc { display: block; color: #636e72; font-size: 0.92rem; }
+        .check-circle { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #27ae60; color: white; display: none; align-items: center; justify-content: center; font-weight: bold; font-size: 0.95rem; }
+        .compress-option.selected .check-circle { display: flex; }
+
+        .panel-footer { padding: 22px; }
+        #file-info { margin-bottom: 18px; padding: 12px 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; text-align: center; font-size: 0.9rem; word-break: break-all; }
+        .info-note { padding: 12px 15px; background: #eaf4ff; border: 1px solid #cce5ff; border-radius: 6px; color: #004085; font-size: 0.82rem; line-height: 1.5; margin-bottom: 18px; }
+
+        .btn-main { background: #d63031; color: white; padding: 15px 20px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-main svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+        #progress-text { text-align: center; color: #636e72; font-weight: 600; margin-top: 12px; min-height: 1.2em; font-size: 0.9rem; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="https://atlantino.ca/tools" class="logo">Atlantino Tools</a>
+    <nav class="nav-links">
+        <a href="/merge">MERGE PDF</a>
+        <a href="/split">SPLIT PDF</a>
+        <a href="/compress">COMPRESS PDF</a>
+
+        <div class="nav-item" id="convert-dropdown">
+            <a href="javascript:void(0)">CONVERT PDF <span class="caret">&#9660;</span></a>
+            <div class="dropdown-menu">
+                <div class="dropdown-label">Convert to PDF</div>
+                <a href="/convert/word-to-pdf"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div>WORD TO PDF</a>
+                <a href="/convert/jpg-to-pdf"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div>JPG TO PDF</a>
+                <a href="/convert/excel-to-pdf"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div>EXCEL TO PDF</a>
+                <a href="/convert/powerpoint-to-pdf"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div>POWERPOINT TO PDF</a>
+                <a href="/convert/html-to-pdf"><div class="app-icon icon-html"><div class="icon-badge"></div><span class="icon-letter">&lt;/&gt;</span></div>HTML TO PDF</a>
+                <div class="dropdown-sep"></div>
+                <div class="dropdown-label">Convert from PDF</div>
+                <a href="/convert/pdf-to-word"><div class="icon-with-badge"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div><div class="pdf-badge">PDF</div></div>PDF TO WORD</a>
+                <a href="/convert/pdf-to-jpg"><div class="icon-with-badge"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div><div class="pdf-badge">PDF</div></div>PDF TO JPG</a>
+                <a href="/convert/pdf-to-excel"><div class="icon-with-badge"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div><div class="pdf-badge">PDF</div></div>PDF TO EXCEL</a>
+                <a href="/convert/pdf-to-powerpoint"><div class="icon-with-badge"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div><div class="pdf-badge">PDF</div></div>PDF TO POWERPOINT</a>
+            </div>
+        </div>
+
+        <a href="/rotate">ROTATE PDF</a>
+        <a href="/watermark">WATERMARK PDF</a>
+    </nav>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const item    = document.getElementById('convert-dropdown');
+        const trigger = item.querySelector(':scope > a');
+        trigger.addEventListener('click', e => { e.preventDefault(); item.classList.toggle('open'); });
+        document.addEventListener('click', e => { if (!item.contains(e.target)) item.classList.remove('open'); });
+    });
+</script>
+
+<div class="ad-space">AdSense Banner (728x90)</div>
+
+<!-- START -->
+<div id="screen-start" class="screen" style="display:flex; align-items:center; justify-content:center;">
+    <div style="text-align:center;">
+        <h1>PDF to PowerPoint</h1>
+        <p style="color:#636e72; margin-bottom:30px;">Turn each PDF page into an editable PowerPoint slide.</p>
+        <button class="btn-main" style="width:auto; padding:15px 40px; font-size:1.05rem; margin:0 auto;" onclick="document.getElementById('file-input').click()">
+            <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;">
+                <path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M14 3V8H19" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            Select PDF file
+        </button>
+        <p style="color:#aab0bb; font-size:0.85rem; margin-top:15px;">Works best with text-based PDFs (not scanned images)</p>
+        <a href="/" style="margin-top:15px; display:inline-block; color:#718096; text-decoration:none; font-size:0.9rem;">← Back to homepage</a>
+    </div>
+</div>
+
+<!-- WORK -->
+<div id="screen-work" class="screen">
+    <div id="preview-area" class="preview-container"></div>
+
+    <div class="split-panel">
+        <h2 class="panel-title">Convert to PowerPoint</h2>
+
+        <div class="panel-subtitle">Slide size</div>
+        <div class="compress-option selected" data-size="widescreen" onclick="selectSize('widescreen')">
+            <div class="option-text">
+                <span class="option-label">Widescreen (16:9)</span>
+                <span class="option-desc">Modern standard, most displays</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-size="standard" onclick="selectSize('standard')">
+            <div class="option-text">
+                <span class="option-label">Standard (4:3)</span>
+                <span class="option-desc">Classic format</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-subtitle">Style</div>
+        <div class="compress-option selected" data-style="accent" onclick="selectStyle('accent')">
+            <div class="option-text">
+                <span class="option-label">Accent bar</span>
+                <span class="option-desc">Colored bar at the top of each slide</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+        <div class="compress-option" data-style="plain" onclick="selectStyle('plain')">
+            <div class="option-text">
+                <span class="option-label">Plain</span>
+                <span class="option-desc">No color accents, text only</span>
+            </div>
+            <div class="check-circle">&#10003;</div>
+        </div>
+
+        <div class="panel-footer">
+            <div class="info-note">
+                This tool extracts <strong>text only</strong> from each page (the largest line is used as the title). Images, exact layout, and original design are not preserved — the result is fully editable in PowerPoint.
+            </div>
+            <div id="file-info">No file selected</div>
+            <button class="btn-main" id="btn-convert" onclick="executeConvert()" disabled>
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 4h10l4 4v14H4V4z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 4v4h4" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M8 13h8M8 17h8M8 9h4" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+                Convert to PowerPoint
+            </button>
+            <div id="progress-text"></div>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="file-input" accept="application/pdf" style="display:none;">
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
+
+    let loadedPdfBytes   = null;
+    let slidesData       = [];   // [{ title, body: [lines] }, ...]
+    let originalFileName = '';
+    let sizeMode          = 'widescreen';
+    let styleMode          = 'accent';
+
+    const SLIDE_SIZES_EMU = {
+        widescreen: { w: 12192000, h: 6858000 }, // 13.333in x 7.5in
+        standard:   { w: 9144000,  h: 6858000 }  // 10in x 7.5in
+    };
+
+    function selectSize(m) {
+        sizeMode = m;
+        document.querySelectorAll('.compress-option[data-size]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.size === m));
+        document.querySelectorAll('.slide-box').forEach(el => {
+            const ratio = SLIDE_SIZES_EMU[sizeMode].w / SLIDE_SIZES_EMU[sizeMode].h;
+            el.style.aspectRatio = `${ratio} / 1`;
+        });
+    }
+
+    function selectStyle(m) {
+        styleMode = m;
+        document.querySelectorAll('.compress-option[data-style]').forEach(el =>
+            el.classList.toggle('selected', el.dataset.style === m));
+        document.querySelectorAll('.accent-bar').forEach(el =>
+            el.style.display = styleMode === 'accent' ? 'block' : 'none');
+    }
+
+    function escXml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                         .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+    }
+
+    // ── Group text items into lines (by Y) and compute approx font size per line ─
+    function groupIntoLines(items) {
+        items = items.slice().sort((a, b) => b.y - a.y || a.x - b.x);
+        const lines = [];
+        let currentLine = [];
+        let lastY = null;
+        const Y_TOLERANCE = 3;
+
+        items.forEach(it => {
+            if (lastY === null || Math.abs(it.y - lastY) <= Y_TOLERANCE) {
+                currentLine.push(it);
+            } else {
+                lines.push(currentLine);
+                currentLine = [it];
+            }
+            lastY = it.y;
+        });
+        if (currentLine.length) lines.push(currentLine);
+        return lines;
+    }
+
+    // ── Extract a page's text as { title, body } using font-size heuristic ──────
+    async function extractPageSlide(page) {
+        const content = await page.getTextContent();
+        const items = content.items
+            .filter(it => it.str.trim() !== '')
+            .map(it => ({
+                text: it.str,
+                x: it.transform[4],
+                y: it.transform[5],
+                width: it.width || (it.str.length * 5),
+                fontSize: Math.abs(it.transform[3]) || 10
+            }));
+
+        if (items.length === 0) return { title: '', body: [] };
+
+        const lines = groupIntoLines(items);
+        const lineObjs = lines.map(line => {
+            const sorted = line.slice().sort((a, b) => a.x - b.x);
+            const text = sorted.map(i => i.text).join(' ').replace(/\s+/g, ' ').trim();
+            const maxFont = Math.max(...line.map(i => i.fontSize));
+            return { text, maxFont };
+        }).filter(l => l.text.length > 0);
+
+        if (lineObjs.length === 0) return { title: '', body: [] };
+
+        // Title = the line with the largest font size on the page
+        let titleIdx = 0;
+        for (let i = 1; i < lineObjs.length; i++) {
+            if (lineObjs[i].maxFont > lineObjs[titleIdx].maxFont) titleIdx = i;
+        }
+
+        const title = lineObjs[titleIdx].text;
+        const body  = lineObjs.filter((_, i) => i !== titleIdx).map(l => l.text);
+
+        return { title, body };
+    }
+
+    // ── Render slide preview card ─────────────────────────────────────────────
+    function renderSlideCard(slide, index, total) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'slide-card';
+
+        const tag = document.createElement('div');
+        tag.className = 'slide-number-tag';
+        tag.innerText = `Slide ${index + 1}`;
+        wrapper.appendChild(tag);
+
+        const box = document.createElement('div');
+        box.className = 'slide-box';
+        const ratio = SLIDE_SIZES_EMU[sizeMode].w / SLIDE_SIZES_EMU[sizeMode].h;
+        box.style.aspectRatio = `${ratio} / 1`;
+
+        const accent = document.createElement('div');
+        accent.className = 'accent-bar';
+        accent.style.display = styleMode === 'accent' ? 'block' : 'none';
+        box.appendChild(accent);
+
+        const hasContent = slide.title || (slide.body && slide.body.length);
+
+        if (!hasContent) {
+            const empty = document.createElement('div');
+            empty.className = 'slide-empty';
+            empty.innerText = '(No extractable text — this page may be a scanned image)';
+            box.appendChild(empty);
+        } else {
+            if (slide.title) {
+                const h = document.createElement('div');
+                h.className = 'slide-title';
+                h.innerText = slide.title;
+                box.appendChild(h);
+            }
+            if (slide.body && slide.body.length) {
+                const bodyEl = document.createElement('div');
+                bodyEl.className = 'slide-body';
+                const ul = document.createElement('ul');
+                slide.body.forEach(line => {
+                    const li = document.createElement('li');
+                    li.innerText = line;
+                    ul.appendChild(li);
+                });
+                bodyEl.appendChild(ul);
+                box.appendChild(bodyEl);
+            }
+        }
+
+        wrapper.appendChild(box);
+        return wrapper;
+    }
+
+    // ── File load ─────────────────────────────────────────────────────────────
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        originalFileName = file.name.replace(/\.pdf$/i, '');
+        loadedPdfBytes    = await file.arrayBuffer();
+
+        document.getElementById('screen-start').style.display = 'none';
+        document.getElementById('screen-work').style.display  = 'flex';
+        document.getElementById('file-info').innerText        = file.name;
+        document.getElementById('progress-text').innerText    = 'Analyzing pages…';
+        document.getElementById('preview-area').innerHTML     = '';
+
+        try {
+            const previewCopy = loadedPdfBytes.slice(0);
+            const pdf = await pdfjsLib.getDocument({ data: previewCopy }).promise;
+            const numPages = pdf.numPages;
+
+            slidesData = [];
+            const previewArea = document.getElementById('preview-area');
+
+            for (let i = 1; i <= numPages; i++) {
+                document.getElementById('progress-text').innerText = `Analyzing page ${i} of ${numPages}…`;
+                const page  = await pdf.getPage(i);
+                const slide = await extractPageSlide(page);
+                slidesData.push(slide);
+                previewArea.appendChild(renderSlideCard(slide, i - 1, numPages));
+            }
+
+            document.getElementById('btn-convert').disabled = false;
+            document.getElementById('progress-text').innerText = '';
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('progress-text').innerText = 'Could not read the PDF.';
+        }
+    });
+
+    // ── Build a minimal valid .pptx (OpenXML) using JSZip ───────────────────────
+    async function buildPptx(slides, slideWidthEMU, slideHeightEMU) {
+        const zip = new JSZip();
+
+        const titleY = Math.round(slideHeightEMU * 0.05);
+        const titleH = Math.round(slideHeightEMU * 0.18);
+        const bodyY  = Math.round(slideHeightEMU * 0.26);
+        const bodyH  = Math.round(slideHeightEMU * 0.68);
+        const boxX   = Math.round(slideWidthEMU * 0.06);
+        const boxW   = Math.round(slideWidthEMU * 0.88);
+
+        zip.file('[Content_Types].xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+  <Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
+  <Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
+  <Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
+  <Override PartName="/ppt/presProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presProps+xml"/>
+  <Override PartName="/ppt/viewProps.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.viewProps+xml"/>
+  <Override PartName="/ppt/tableStyles.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+${slides.map((_, i) => `  <Override PartName="/ppt/slides/slide${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('\n')}
+</Types>`);
+
+        zip.file('_rels/.rels',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`);
+
+        zip.file('docProps/core.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <dc:creator>Atlantino Tools</dc:creator>
+  <dc:title>${escXml(originalFileName)}</dc:title>
+</cp:coreProperties>`);
+
+        zip.file('docProps/app.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>Atlantino Tools</Application>
+  <Slides>${slides.length}</Slides>
+</Properties>`);
+
+        const sldIdList = slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${100 + i}"/>`).join('');
+        zip.file('ppt/presentation.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>
+  <p:sldIdLst>${sldIdList}</p:sldIdLst>
+  <p:sldSz cx="${slideWidthEMU}" cy="${slideHeightEMU}" type="screen4x3"/>
+  <p:notesSz cx="${slideHeightEMU}" cy="${slideWidthEMU}"/>
+</p:presentation>`);
+
+        const slideRels = slides.map((_, i) =>
+            `<Relationship Id="rId${100 + i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i+1}.xml"/>`).join('\n  ');
+        zip.file('ppt/_rels/presentation.xml.rels',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/presProps" Target="presProps.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/viewProps" Target="viewProps.xml"/>
+  <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tableStyles" Target="tableStyles.xml"/>
+  ${slideRels}
+</Relationships>`);
+
+        zip.file('ppt/presProps.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:presentationPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>`);
+
+        zip.file('ppt/viewProps.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:viewPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>`);
+
+        zip.file('ppt/tableStyles.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:tblStyleLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" def="{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"/>`);
+
+        zip.file('ppt/theme/theme1.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Atlantino">
+  <a:themeElements>
+    <a:clrScheme name="Atlantino">
+      <a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>
+      <a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
+      <a:dk2><a:srgbClr val="2D3436"/></a:dk2>
+      <a:lt2><a:srgbClr val="F4F7F9"/></a:lt2>
+      <a:accent1><a:srgbClr val="D24726"/></a:accent1>
+      <a:accent2><a:srgbClr val="E8623A"/></a:accent2>
+      <a:accent3><a:srgbClr val="D63031"/></a:accent3>
+      <a:accent4><a:srgbClr val="2D3436"/></a:accent4>
+      <a:accent5><a:srgbClr val="8A8F96"/></a:accent5>
+      <a:accent6><a:srgbClr val="AAB0BB"/></a:accent6>
+      <a:hlink><a:srgbClr val="0563C1"/></a:hlink>
+      <a:folHlink><a:srgbClr val="954F72"/></a:folHlink>
+    </a:clrScheme>
+    <a:fontScheme name="Atlantino">
+      <a:majorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>
+      <a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont>
+    </a:fontScheme>
+    <a:fmtScheme name="Atlantino">
+      <a:fillStyleLst>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+      </a:fillStyleLst>
+      <a:lnStyleLst>
+        <a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>
+        <a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>
+        <a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>
+      </a:lnStyleLst>
+      <a:effectStyleLst>
+        <a:effectStyle><a:effectLst/></a:effectStyle>
+        <a:effectStyle><a:effectLst/></a:effectStyle>
+        <a:effectStyle><a:effectLst/></a:effectStyle>
+      </a:effectStyleLst>
+      <a:bgFillStyleLst>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+      </a:bgFillStyleLst>
+    </a:fmtScheme>
+  </a:themeElements>
+</a:theme>`);
+
+        zip.file('ppt/slideMasters/slideMaster1.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld>
+    <p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg>
+    <p:spTree>
+      <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+      <p:grpSpPr/>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="2" name="Title Placeholder"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr>
+        <p:spPr><a:xfrm><a:off x="${boxX}" y="${titleY}"/><a:ext cx="${boxW}" cy="${titleH}"/></a:xfrm></p:spPr>
+        <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Title</a:t></a:r></a:p></p:txBody>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="3" name="Body Placeholder"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr>
+        <p:spPr><a:xfrm><a:off x="${boxX}" y="${bodyY}"/><a:ext cx="${boxW}" cy="${bodyH}"/></a:xfrm></p:spPr>
+        <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Body</a:t></a:r></a:p></p:txBody>
+      </p:sp>
+    </p:spTree>
+  </p:cSld>
+  <p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>
+  <p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst>
+</p:sldMaster>`);
+
+        zip.file('ppt/slideMasters/_rels/slideMaster1.xml.rels',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/>
+</Relationships>`);
+
+        zip.file('ppt/slideLayouts/slideLayout1.xml',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="obj" preserve="1">
+  <p:cSld name="Title and Content">
+    <p:spTree>
+      <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+      <p:grpSpPr/>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="2" name="Title Placeholder"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr>
+        <p:spPr><a:xfrm><a:off x="${boxX}" y="${titleY}"/><a:ext cx="${boxW}" cy="${titleH}"/></a:xfrm></p:spPr>
+        <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Title</a:t></a:r></a:p></p:txBody>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="3" name="Content Placeholder"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph idx="1"/></p:nvPr></p:nvSpPr>
+        <p:spPr><a:xfrm><a:off x="${boxX}" y="${bodyY}"/><a:ext cx="${boxW}" cy="${bodyH}"/></a:xfrm></p:spPr>
+        <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Content</a:t></a:r></a:p></p:txBody>
+      </p:sp>
+    </p:spTree>
+  </p:cSld>
+</p:sldLayout>`);
+
+        zip.file('ppt/slideLayouts/_rels/slideLayout1.xml.rels',
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/>
+</Relationships>`);
+
+        slides.forEach((slide, i) => {
+            const titleXml = slide.title
+                ? `<a:p><a:r><a:t>${escXml(slide.title)}</a:t></a:r></a:p>`
+                : `<a:p><a:r><a:t></a:t></a:r></a:p>`;
+
+            const bodyParas = (slide.body && slide.body.length)
+                ? slide.body.map(line => `<a:p><a:r><a:t>${escXml(line)}</a:t></a:r></a:p>`).join('')
+                : `<a:p><a:r><a:t></a:t></a:r></a:p>`;
+
+            zip.file(`ppt/slides/slide${i+1}.xml`,
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld>
+    <p:spTree>
+      <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+      <p:grpSpPr/>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="2" name="Title 1"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr>
+        <p:spPr/>
+        <p:txBody><a:bodyPr/><a:lstStyle/>${titleXml}</p:txBody>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="3" name="Content Placeholder 2"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph idx="1"/></p:nvPr></p:nvSpPr>
+        <p:spPr/>
+        <p:txBody><a:bodyPr/><a:lstStyle/>${bodyParas}</p:txBody>
+      </p:sp>
+    </p:spTree>
+  </p:cSld>
+  <p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
+</p:sld>`);
+
+            zip.file(`ppt/slides/_rels/slide${i+1}.xml.rels`,
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`);
+        });
+
+        return zip.generateAsync({
+            type: 'blob',
+            mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        });
+    }
+
+    // ── Convert ───────────────────────────────────────────────────────────────
+    async function executeConvert() {
+        if (slidesData.length === 0) return;
+        const btn      = document.getElementById('btn-convert');
+        const progress = document.getElementById('progress-text');
+        btn.disabled   = true;
+        btn.innerHTML  = '<span class="spinner"></span> Building PowerPoint…';
+
+        try {
+            const size = SLIDE_SIZES_EMU[sizeMode];
+            const blob = await buildPptx(slidesData, size.w, size.h);
+            const a    = document.createElement('a');
+            a.href     = URL.createObjectURL(blob);
+            a.download = (originalFileName || 'presentation') + '.pptx';
+            a.click();
+            URL.revokeObjectURL(a.href);
+            progress.innerText = '✓ Done! Download started.';
+        } catch (err) {
+            console.error(err);
+            progress.innerText = 'Error building the PowerPoint file. Please try again.';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;">
+                    <path d="M4 4h10l4 4v14H4V4z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14 4v4h4" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M8 13h8M8 17h8M8 9h4" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+                Convert to PowerPoint`;
+        }
+    }
+</script>
+</body>
+</html>
