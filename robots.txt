@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://atlantino.ca
+Sitemap: https://tools.atlantino.ca
