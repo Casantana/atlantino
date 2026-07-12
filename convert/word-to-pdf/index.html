@@ -1,135 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="icon" type="image/png" href="../../favicon.png?v=latest">
+    <link rel="icon" type="image/png" href="../favicon.png?v=latest">
     <meta charset="UTF-8">
-    <title>Convert Word to PDF Online Free | Atlantino Tools</title>
-<meta name="description" content="Convert DOC and DOCX files to PDF online for free. Keep your original formatting intact with our fast Word to PDF converter.">
-<link rel="canonical" href="https://tools.atlantino.ca/word-to-pdf/">
+    <title>Word to PDF | Atlantino Tools</title>
     <script>
+        // Verificación básica de soporte del navegador
         if (!window.FileReader || !window.Blob || !window.Promise) {
             alert("Your browser is outdated. Please update it to use Atlantino Tools.");
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
-        /* ===== GENERAL ===== */
-        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; line-height: 1.6; }
-
-        /* ===== HEADER ===== */
+        /* Estilos base */
+        body { font-family: 'Inter', sans-serif; background: #f4f7f9; margin: 0; }
         header { background: #fff; padding: 15px 40px; display: flex; align-items: center; border-bottom: 1px solid #e2e8f0; gap: 30px; }
         .logo { font-weight: 700; font-size: 1.4rem; color: #d63031; text-decoration: none; }
+        
+        /* Navegación */
         .nav-links { display: flex; align-items: center; }
         .nav-links > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; margin-right: 15px; letter-spacing: 0.5px; }
-
-        /* ===== DROPDOWN ===== */
-        .nav-item { position: relative; margin-right: 15px; }
-        .nav-item > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; padding: 8px 0; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-        .nav-item:hover > a, .nav-item.open > a { color: #d63031; }
-        .nav-item .caret { font-size: 0.6rem; transition: transform 0.2s; }
-        .nav-item:hover .caret, .nav-item.open .caret { transform: rotate(180deg); }
-        .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); min-width: 200px; padding: 8px 0; z-index: 100; }
-        .nav-item:hover .dropdown-menu, .nav-item.open .dropdown-menu { display: block; }
-        .dropdown-menu a { display: flex; align-items: center; gap: 11px; padding: 10px 18px; color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap; margin-right: 0 !important; }
+        .nav-item { position: relative; margin-right: 15px; cursor: pointer; }
+        .nav-item > a { color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 4px; }
+        
+        /* Menú desplegable */
+        .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); min-width: 200px; padding: 8px 0; z-index: 1000; }
+        .nav-item:hover .dropdown-menu { display: block; }
+        .dropdown-menu a { display: flex; align-items: center; gap: 11px; padding: 10px 18px; color: #2d3436; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
         .dropdown-menu a:hover { background: #f4f7f9; color: #d63031; }
+        .dropdown-label { padding: 8px 18px 2px; font-size: 0.65rem; font-weight: 800; color: #a0aec0; text-transform: uppercase; }
         .dropdown-sep { height: 1px; background: #e2e8f0; margin: 6px 0; }
-        .dropdown-label { padding: 6px 18px 2px; font-size: 0.7rem; font-weight: 700; color: #a0aec0; letter-spacing: 1px; text-transform: uppercase; }
 
-        /* ===== OFFICE ICONS ===== */
-        .app-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; overflow: hidden; font-family: 'Arial Black', Arial, sans-serif; font-weight: 900; }
-        .app-icon .icon-letter { font-size: 15px; color: white; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); position: relative; z-index: 2; }
-        .app-icon .icon-badge { position: absolute; top: -1px; left: -1px; background: rgba(255,255,255,0.18); width: 13px; height: 13px; border-radius: 0 0 4px 0; }
-        .icon-word  { background: linear-gradient(135deg, #1e6fbb 0%, #185ABD 100%); }
-        .icon-jpg   { background: linear-gradient(135deg, #f0b429 0%, #d9961f 100%); }
-        .icon-excel { background: linear-gradient(135deg, #1a9e52 0%, #107C41 100%); }
-        .icon-pptx  { background: linear-gradient(135deg, #e8623a 0%, #D24726 100%); }
-        .icon-html  { background: linear-gradient(135deg, #e44d26 0%, #c0390f 100%); }
-        .icon-jpg-img { position: relative; overflow: hidden; }
-        .icon-jpg-img .sky   { position: absolute; top: 0; left: 0; right: 0; bottom: 40%; background: rgba(255,255,255,0.22); }
-        .icon-jpg-img .sun   { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.9); }
-        .icon-jpg-img .hills { position: absolute; bottom: 0; left: 0; right: 0; height: 14px; background: rgba(255,255,255,0.18); clip-path: polygon(0 100%, 30% 20%, 55% 70%, 75% 30%, 100% 60%, 100% 100%); }
-        .icon-with-badge { position: relative; }
-        .icon-with-badge .pdf-badge { position: absolute; bottom: -3px; right: -3px; background: #C0392B; color: white; font-size: 5.5px; font-family: Arial, sans-serif; font-weight: 900; padding: 1.5px 2.5px; border-radius: 2px; line-height: 1; letter-spacing: 0.2px; border: 1.5px solid #f4f7f9; }
+        /* Iconos de Aplicaciones */
+        .app-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; flex-shrink: 0; }
+        .icon-word { background: #185ABD; }
+        .icon-jpg { background: #d9961f; }
+        .icon-excel { background: #107C41; }
+        .icon-pptx { background: #D24726; }
+        .icon-html { background: #c0390f; }
 
-        /* ===== AD SPACE ===== */
-        .ad-space { width: 100%; height: 90px; background: #edf2f7; display: flex; align-items: center; justify-content: center; color: #a0aec0; margin-bottom: 30px; border: 1px dashed #cbd5e0; box-sizing: border-box; }
+        /* Layout y Contenedores */
+        .screen { display: none; min-height: calc(100vh - 200px); align-items: center; justify-content: flex-start; flex-direction: column; }
+        #screen-start { display: flex; padding-top: 60px; }
+        .btn-main { background: #d63031; color: white; padding: 18px 40px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1.1rem; transition: background 0.3s; }
+        .btn-main:hover { background: #b71c1c; }
+        #screen-work { display: none; padding: 20px 40px; max-width: 1100px; margin: 0 auto; gap: 30px; flex-direction: row; }
+        .left-panel { flex: 3; background: white; padding: 30px; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 20px; min-height: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .file-item { width: 130px; height: 170px; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff; padding: 10px; text-align: center; font-size: 0.7rem; position: relative; }
+        .add-more { width: 130px; height: 170px; border: 2px dashed #d63031; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #d63031; }
 
-        /* ===== SCREENS ===== */
-        .screen { display: none; height: auto; padding: 40px; justify-content: center; gap: 40px; flex-direction: row; }
+.ad-space { 
+    width: 100%; 
+    height: 90px; 
+    background: #edf2f7; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: #a0aec0; 
+    margin-bottom: 20px; 
+    border: 1px dashed #cbd5e0; 
+}
 
-        /* ===== DOCUMENT PREVIEW ===== */
-        .preview-container {
-            flex: 1;
-            max-width: 700px;
-            max-height: 80vh;
-            overflow-y: auto;
-            background: #d0d3d8;
-            border-radius: 12px;
-            padding: 32px 40px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0;
-            scrollbar-width: thin;
-            scrollbar-color: #aab0bb #d0d3d8;
-        }
-        .preview-container::-webkit-scrollbar { width: 7px; }
-        .preview-container::-webkit-scrollbar-track { background: #d0d3d8; border-radius: 10px; }
-        .preview-container::-webkit-scrollbar-thumb { background: #aab0bb; border-radius: 10px; }
 
-        .doc-page {
-            background: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 6px 24px rgba(0,0,0,0.10);
-            box-sizing: border-box;
-            font-family: 'Calibri', 'Carlito', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            font-size: 13.5px;
-            line-height: 1.55;
-            color: #000;
-            transition: width 0.25s, min-height 0.25s, padding 0.25s;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        .doc-page h1 { font-family: 'Calibri Light', 'Calibri', 'Carlito', 'Segoe UI Light', 'Segoe UI', sans-serif; font-weight: 300; font-size: 2em; color: #2F5496; margin: 0 0 6px; line-height: 1.15; border-bottom: none; }
-        .doc-page h2 { font-family: 'Calibri Light', 'Calibri', 'Carlito', 'Segoe UI Light', 'Segoe UI', sans-serif; font-weight: 300; font-size: 1.5em; color: #2F5496; margin: 1em 0 4px; line-height: 1.2; }
-        .doc-page h3 { font-size: 1.17em; font-weight: 700; color: #1F3864; margin: 0.8em 0 4px; }
-        .doc-page h4 { font-size: 1em; font-weight: 700; color: #2F5496; margin: 0.7em 0 3px; }
-        .doc-page p  { margin: 0 0 0.5em; }
-        .doc-page p:empty { margin: 0; height: 0.6em; }
-        .doc-page ul, .doc-page ol { margin: 0 0 0.5em; padding-left: 1.6em; }
-        .doc-page li { margin-bottom: 0.15em; }
-        .doc-page strong, .doc-page b { font-weight: 700; }
-        .doc-page em, .doc-page i    { font-style: italic; }
-        .doc-page u  { text-decoration: underline; }
-        .doc-page a  { color: #0563C1; text-decoration: underline; }
-        .doc-page hr { border: none; border-top: 1px solid #aaa; margin: 0.8em 0; }
-        .doc-page img { max-width: 100%; height: auto; display: block; margin: 4px 0; }
-        .doc-page table { border-collapse: collapse; width: 100%; margin-bottom: 0.7em; font-size: 0.97em; }
-        .doc-page table td, .doc-page table th { border: 1px solid #7b7b7b; padding: 4px 8px; vertical-align: top; }
-        .doc-page table th { background: #dce6f1; font-weight: 700; }
-        .doc-page pre, .doc-page code { font-family: 'Courier New', Courier, monospace; font-size: 0.9em; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 3px; padding: 2px 5px; }
-        .doc-page pre { padding: 10px 14px; overflow-x: auto; }
-
-        /* ===== PANEL DERECHO ===== */
-        .split-panel { background: white; padding: 0; border-radius: 12px; width: 380px; flex-shrink: 0; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; align-self: flex-start; }
-        .panel-title { margin: 0; padding: 22px 25px 18px; text-align: center; font-size: 1.5rem; font-weight: 700; color: #2d3436; border-bottom: 1px solid #e2e8f0; }
-        .panel-subtitle { padding: 10px 25px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8a8f96; background: #fafafa; border-bottom: 1px solid #e2e8f0; }
-        .compress-option { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 15px 25px; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background 0.15s; }
-        .compress-option:hover { background: #f9f9fb; }
-        .compress-option.selected { background: #f0f0f5; }
-        .compress-option .option-text .option-label { display: block; color: #d63031; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 3px; }
-        .compress-option .option-text .option-desc { display: block; color: #636e72; font-size: 0.92rem; }
-        .check-circle { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #27ae60; color: white; display: none; align-items: center; justify-content: center; font-weight: bold; font-size: 0.95rem; }
-        .compress-option.selected .check-circle { display: flex; }
-        .panel-footer { padding: 22px; }
-        #file-info { margin-bottom: 18px; padding: 12px 15px; background: #fff5f5; border: 1px solid #d63031; border-radius: 6px; color: #d63031; font-weight: 700; text-align: center; font-size: 0.9rem; word-break: break-all; }
-        .btn-main { background: #d63031; color: white; padding: 15px 20px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-main svg { width: 20px; height: 20px; flex-shrink: 0; }
-        #progress-text { text-align: center; color: #636e72; font-weight: 600; margin-top: 12px; min-height: 1.2em; font-size: 0.9rem; }
-        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -140,262 +73,144 @@
         <a href="/merge">MERGE PDF</a>
         <a href="/split">SPLIT PDF</a>
         <a href="/compress">COMPRESS PDF</a>
-
         <div class="nav-item" id="convert-dropdown">
-            <a href="javascript:void(0)">CONVERT PDF <span class="caret">&#9660;</span></a>
+            <a href="javascript:void(0)">CONVERT PDF ▾</a>
             <div class="dropdown-menu">
-
                 <div class="dropdown-label">Convert to PDF</div>
-
-                <a href="/convert/word-to-pdf">
-                    <div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div>
-                    WORD TO PDF
-                </a>
-                <a href="/convert/jpg-to-pdf">
-                    <div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div>
-                    JPG TO PDF
-                </a>
-                <a href="/convert/excel-to-pdf">
-                    <div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div>
-                    EXCEL TO PDF
-                </a>
-                <a href="/convert/powerpoint-to-pdf">
-                    <div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div>
-                    POWERPOINT TO PDF
-                </a>
-                <a href="/convert/html-to-pdf">
-                    <div class="app-icon icon-html"><div class="icon-badge"></div><span class="icon-letter">&lt;/&gt;</span></div>
-                    HTML TO PDF
-                </a>
-
+                <a href="/convert/word-to-pdf"><div class="app-icon icon-word">W</div> WORD TO PDF</a>
+                <a href="/convert/jpg-to-pdf"><div class="app-icon icon-jpg">J</div> JPG TO PDF</a>
+                <a href="/convert/excel-to-pdf"><div class="app-icon icon-excel">X</div> EXCEL TO PDF</a>
+                <a href="/convert/powerpoint-to-pdf"><div class="app-icon icon-pptx">P</div> POWERPOINT TO PDF</a>
+                <a href="/convert/html-to-pdf"><div class="app-icon icon-html">&lt;/&gt;</div> HTML TO PDF</a>
                 <div class="dropdown-sep"></div>
                 <div class="dropdown-label">Convert from PDF</div>
-
-                <a href="/convert/pdf-to-word">
-                    <div class="icon-with-badge"><div class="app-icon icon-word"><div class="icon-badge"></div><span class="icon-letter">W</span></div><div class="pdf-badge">PDF</div></div>
-                    PDF TO WORD
-                </a>
-                <a href="/convert/pdf-to-jpg">
-                    <div class="icon-with-badge"><div class="app-icon icon-jpg icon-jpg-img"><div class="sky"></div><div class="sun"></div><div class="hills"></div></div><div class="pdf-badge">PDF</div></div>
-                    PDF TO JPG
-                </a>
-                <a href="/convert/pdf-to-excel/">
-                    <div class="icon-with-badge"><div class="app-icon icon-excel"><div class="icon-badge"></div><span class="icon-letter">X</span></div><div class="pdf-badge">PDF</div></div>
-                    PDF TO EXCEL
-                </a>
-                <a href="/convert/pdf-to-powerpoint">
-                    <div class="icon-with-badge"><div class="app-icon icon-pptx"><div class="icon-badge"></div><span class="icon-letter">P</span></div><div class="pdf-badge">PDF</div></div>
-                    PDF TO POWERPOINT
-                </a>
-
+                <a href="/convert/pdf-to-word"><div class="app-icon icon-word">W</div> PDF TO WORD</a>
+                <a href="/convert/pdf-to-jpg"><div class="app-icon icon-jpg">J</div> PDF TO JPG</a>
+                <a href="/convert/pdf-to-excel"><div class="app-icon icon-excel">X</div> PDF TO EXCEL</a>
+                <a href="/convert/pdf-to-powerpoint"><div class="app-icon icon-pptx">P</div> PDF TO POWERPOINT</a>
             </div>
         </div>
-
         <a href="/rotate">ROTATE PDF</a>
         <a href="/watermark">WATERMARK PDF</a>
     </nav>
 </header>
 
-<!-- Dropdown táctil -->
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const item    = document.getElementById('convert-dropdown');
-        const trigger = item.querySelector(':scope > a');
-        trigger.addEventListener('click', e => { e.preventDefault(); item.classList.toggle('open'); });
-        document.addEventListener('click', e => { if (!item.contains(e.target)) item.classList.remove('open'); });
-    });
-</script>
-
 <div class="ad-space">AdSense Banner (728x90)</div>
 
-<div id="screen-start" class="screen" style="display: flex; align-items: center; justify-content: center;">
-    <div style="text-align:center;">
-        <h1>Word to PDF</h1>
-        <p style="color:#636e72; margin-bottom:30px;">Convert your .docx files to PDF in seconds, right in your browser.</p>
-        <button class="btn-main" style="width:auto; padding: 15px 40px; font-size:1.05rem; margin: 0 auto;" onclick="document.getElementById('file-input').click()">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;">
-                <path d="M12 16V4m0 12-4-4m4 4 4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M4 20h16" stroke="white" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            Select WORD file
-        </button>
-        <p style="color:#aab0bb; font-size:0.85rem; margin-top:15px;">Only .docx files are supported</p>
-    </div>
+<div id="screen-start" class="screen">
+    <h1>Word to PDF</h1>
+    <p style="color: #636e72; margin-bottom: 30px;">Convert your .docx files to PDF.</p>
+    
+    <button class="btn-main" onclick="document.getElementById('file-input').click()">Select WORD files</button>
 </div>
 
 <div id="screen-work" class="screen">
-    <div id="preview-area" class="preview-container">
-        <div class="doc-page" id="doc-page"></div>
+    <div class="left-panel" id="file-list">
+        <div class="add-more" onclick="document.getElementById('file-input').click()"><span>+</span> Add</div>
     </div>
-
-    <div class="split-panel">
-        <h2 class="panel-title">Convert to PDF</h2>
-
-        <div class="panel-subtitle">Page format</div>
-
-        <div class="compress-option selected" data-format="a4" onclick="selectFormat('a4')">
-            <div class="option-text">
-                <span class="option-label">A4</span>
-                <span class="option-desc">210 × 297 mm · Most countries</span>
-            </div>
-            <div class="check-circle">&#10003;</div>
-        </div>
-
-        <div class="compress-option" data-format="letter" onclick="selectFormat('letter')">
-            <div class="option-text">
-                <span class="option-label">Letter</span>
-                <span class="option-desc">215.9 × 279.4 mm · US & Canada</span>
-            </div>
-            <div class="check-circle">&#10003;</div>
-        </div>
-
-        <div class="panel-subtitle">Orientation</div>
-
-        <div class="compress-option selected" data-orientation="portrait" onclick="selectOrientation('portrait')">
-            <div class="option-text">
-                <span class="option-label">
-                    <svg style="width:14px;height:14px;vertical-align:middle;margin-right:5px;" viewBox="0 0 14 18" fill="none"><rect x="1" y="1" width="12" height="16" rx="1.5" stroke="#d63031" stroke-width="1.5"/></svg>
-                    Portrait
-                </span>
-                <span class="option-desc">Vertical page</span>
-            </div>
-            <div class="check-circle">&#10003;</div>
-        </div>
-
-        <div class="compress-option" data-orientation="landscape" onclick="selectOrientation('landscape')">
-            <div class="option-text">
-                <span class="option-label">
-                    <svg style="width:18px;height:14px;vertical-align:middle;margin-right:5px;" viewBox="0 0 18 14" fill="none"><rect x="1" y="1" width="16" height="12" rx="1.5" stroke="#d63031" stroke-width="1.5"/></svg>
-                    Landscape
-                </span>
-                <span class="option-desc">Horizontal page</span>
-            </div>
-            <div class="check-circle">&#10003;</div>
-        </div>
-
-        <div class="panel-footer">
-            <div id="file-info">No file selected</div>
-            <button class="btn-main" id="btn-convert" onclick="executeConvert()" disabled>
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M14 3V8H19" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M10 12h6M10 16h4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-                Convert to PDF
-            </button>
-            <div id="progress-text"></div>
-        </div>
+    <div class="right-panel">
+        <h2 style="margin-top:0">Convert to PDF</h2>
+        <button class="btn-main" style="width:100%" onclick="convertFiles()" id="convert-btn">Convert to PDF</button>
+        <a href="https://tools.atlantino.ca" id="more-tools-btn" class="btn-main" style="width:100%; display:none; margin-top:10px; text-decoration:none; text-align:center; background:#2970f5; color:white;">More Tools</a>
     </div>
 </div>
 
-<input type="file" id="file-input" accept=".docx" style="display:none;">
+<input type="file" id="file-input" multiple accept=".docx" style="display:none;">
 
 <script>
-    const PAGE_MM = {
-        a4:     { w: 210,   h: 297   },
-        letter: { w: 215.9, h: 279.4 }
-    };
-    const PREVIEW_SCALE = 1.72;
-    const MARGIN_MM = 25.4;
+    const MAX_FILES = 25;
+    let filesArray = [];
 
-    let currentFormat      = 'a4';
-    let currentOrientation = 'portrait';
-    let originalFileName   = '';
-
-    function updateDocPageStyle() {
-        const base = PAGE_MM[currentFormat];
-        let wMM = base.w, hMM = base.h;
-        if (currentOrientation === 'landscape') [wMM, hMM] = [hMM, wMM];
-        const page = document.getElementById('doc-page');
-        page.style.width     = (wMM  * PREVIEW_SCALE) + 'px';
-        page.style.minHeight = (hMM  * PREVIEW_SCALE) + 'px';
-        page.style.padding   = (MARGIN_MM * PREVIEW_SCALE) + 'px';
-    }
-
-    function selectFormat(fmt) {
-        currentFormat = fmt;
-        document.querySelectorAll('.compress-option[data-format]').forEach(el =>
-            el.classList.toggle('selected', el.dataset.format === fmt));
-        updateDocPageStyle();
-    }
-
-    function selectOrientation(ori) {
-        currentOrientation = ori;
-        document.querySelectorAll('.compress-option[data-orientation]').forEach(el =>
-            el.classList.toggle('selected', el.dataset.orientation === ori));
-        updateDocPageStyle();
-    }
-
-    updateDocPageStyle();
-
-    document.getElementById('file-input').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        if (!file.name.toLowerCase().endsWith('.docx')) {
-            alert('Only .docx files are supported. Old .doc format is not compatible.');
-            return;
-        }
-
-        originalFileName = file.name.replace(/\.docx$/i, '');
-
+    // Manejo de entrada de archivos
+    document.getElementById('file-input').addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
         document.getElementById('screen-start').style.display = 'none';
-        document.getElementById('screen-work').style.display  = 'flex';
-        document.getElementById('file-info').innerText        = file.name;
-        document.getElementById('progress-text').innerText    = 'Processing document…';
-        document.getElementById('doc-page').innerHTML         = '';
-
-        const arrayBuffer = await file.arrayBuffer();
-
-        try {
-            const result = await mammoth.convertToHtml({ arrayBuffer });
-            document.getElementById('doc-page').innerHTML =
-                result.value || '<p><em>(Empty document)</em></p>';
-            document.getElementById('btn-convert').disabled = false;
-            document.getElementById('progress-text').innerText = '';
-        } catch (err) {
-            console.error(err);
-            document.getElementById('doc-page').innerHTML =
-                '<p style="color:#d63031;">Could not read the document. Make sure it is a valid .docx file.</p>';
-            document.getElementById('progress-text').innerText = '';
-        }
+        document.getElementById('screen-work').style.display = 'flex';
+        
+        files.forEach(file => {
+            filesArray.push(file);
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.dataset.index = filesArray.length - 1; 
+            div.innerHTML = `<div class="app-icon icon-word">W</div><p style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 5px;">${file.name}</p><button onclick="this.parentElement.remove()">×</button>`;
+            document.getElementById('file-list').insertBefore(div, document.querySelector('.add-more'));
+        });
     });
 
-    async function executeConvert() {
-        const btn      = document.getElementById('btn-convert');
-        const progress = document.getElementById('progress-text');
-        const docPage  = document.getElementById('doc-page');
+    new Sortable(document.getElementById('file-list'), { animation: 150 });
 
-        btn.disabled   = true;
-        btn.innerHTML  = '<span class="spinner"></span> Generating PDF…';
-        progress.innerText = '';
+    // Función de conversión
+    async function convertFiles() {
+        const items = document.querySelectorAll('.file-item');
+        if (items.length === 0) return alert("Please select files first.");
 
-        const opt = {
-            margin:     0,
-            filename:   (originalFileName || 'document') + '.pdf',
-            image:      { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', letterRendering: true },
-            jsPDF: { unit: 'mm', format: currentFormat, orientation: currentOrientation, compress: true },
-            pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'td', 'img'] }
-        };
+        // URL de producción de n8n
+        const WEBHOOK_URL = 'https://n8n.atlantino.ca/webhook/word2pdf';
+
+        const formData = new FormData();
+        items.forEach(item => {
+            const index = item.dataset.index;
+            if (index !== undefined && filesArray[index]) {
+                formData.append('files', filesArray[index]); 
+            }
+        });
+
+        const btn = document.getElementById('convert-btn');
+        btn.innerText = "Processing...";
+        btn.disabled = true;
 
         try {
-            await html2pdf().set(opt).from(docPage).save();
-            progress.innerText = '✓ Done! Download started.';
+            const response = await fetch(WEBHOOK_URL, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error("Server returned " + response.status);
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+
+            // Capturar nombre dinámico
+            const disposition = response.headers.get('Content-Disposition');
+            let filename = "download";
+            if (disposition) {
+                const match = disposition.match(/filename\*?=['"]?(?:UTF-8'')?([^'";]+)/i);
+                if (match && match[1]) filename = decodeURIComponent(match[1]);
+            } else {
+                const type = response.headers.get("Content-Type");
+                filename = type && type.includes("zip") ? "Atlantino.zip" : "Atlantino.pdf";
+            }
+
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            
+            btn.innerText = "¡Listo!";
+            
+            // Mostrar botón de más herramientas
+            const moreBtn = document.getElementById('more-tools-btn');
+            if (moreBtn) moreBtn.style.display = 'block';
+
+            setTimeout(() => {
+                btn.innerText = "Convert another";
+                btn.disabled = false;
+                btn.onclick = () => location.reload();
+            }, 3000);
+
         } catch (err) {
-            console.error(err);
-            progress.innerText = 'Error generating the PDF. Please try again.';
-        } finally {
+            console.error("Error:", err);
+            alert("Error connecting to server: " + err.message);
+            btn.innerText = "Convert to PDF";
             btn.disabled = false;
-            btn.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;">
-                    <path d="M7 3H14L19 8V21H7V3Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M14 3V8H19" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M10 12h6M10 16h4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-                Convert to PDF`;
         }
     }
 </script>
+
 </body>
 </html>
