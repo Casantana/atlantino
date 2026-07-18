@@ -1,0 +1,2 @@
+/word-to-pdf/      /convert/word-to-pdf/    301
+/word-to-pdf       /convert/word-to-pdf/    301
